@@ -60,6 +60,21 @@ export async function adminCreateUser(data) {
   return apiFetch('/admin/users', { method: 'POST', body: JSON.stringify(data) });
 }
 
+// Admin: get pending users
+export async function getPendingUsers() {
+  return apiFetch('/admin/pending-users');
+}
+
+// Admin: approve user
+export async function approveUser(userId) {
+  return apiFetch(`/admin/users/${userId}/approve`, { method: 'POST' });
+}
+
+// Admin: reject/delete user
+export async function deleteUser(userId) {
+  return apiFetch(`/admin/users/${userId}`, { method: 'DELETE' });
+}
+
 // Classes
 export async function getClasses() {
   return apiFetch('/classes');
@@ -330,4 +345,9 @@ export async function rejectStudentProfile(profileId, reason) {
     method: 'POST', 
     body: JSON.stringify({ reason }) 
   });
+}
+
+// Notifications
+export async function getAdminNotifications() {
+  return apiFetch('/admin/notifications');
 }

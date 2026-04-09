@@ -6,15 +6,23 @@ import { signAccessToken, signRefreshToken } from '../auth.js';
 import { authRequired, requireRole, type AuthedRequest } from '../middleware.js';
 
 export function registerAuthRoutes(router: Router) {
+  // Public registration - only STUDENT and TEACHER allowed
   router.post('/auth/register', async (req: Request, res: Response) => {
     const body = z
       .object({
         email: z.string().email(),
         password: z.string().min(6),
         fullName: z.string().min(2),
-        role: z.enum(['STUDENT', 'TEACHER', 'ADMIN']).optional(),
+        role: z.enum(['STUDENT', 'TEACHER']).optional(),
       })
       .parse(req.body);
+
+    // Check if email already exists
+    const existing = await prisma.user.findUnique({ where: { email: body.email.toLowerCase() } });
+    if (existing) {
+      res.status(400).json({ error: 'email_exists', message: 'Email already registered' });
+      return;
+    }
 
     const passwordHash = await bcrypt.hash(body.password, 10);
 
@@ -24,14 +32,15 @@ export function registerAuthRoutes(router: Router) {
         passwordHash,
         fullName: body.fullName,
         role: body.role ?? 'STUDENT',
+        isApproved: false, // Requires admin approval
       },
-      select: { id: true, email: true, fullName: true, role: true, createdAt: true },
+      select: { id: true, email: true, fullName: true, role: true, isApproved: true, createdAt: true },
     });
 
-    res.json(user);
+    res.json({ ...user, message: 'Account created successfully. Please wait for admin approval.' });
   });
 
-  // Admin creates user
+  // Admin creates user - auto-approved
   router.post('/admin/users', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
     const body = z
       .object({
@@ -58,8 +67,9 @@ export function registerAuthRoutes(router: Router) {
         fullName: body.fullName,
         role: body.role,
         isProfileComplete: true, // Admin created, so profile is complete
+        isApproved: true, // Admin created, so auto-approved
       },
-      select: { id: true, email: true, fullName: true, role: true, createdAt: true },
+      select: { id: true, email: true, fullName: true, role: true, isApproved: true, createdAt: true },
     });
 
     res.json(user);
@@ -80,6 +90,12 @@ export function registerAuthRoutes(router: Router) {
       return;
     }
 
+    // Check if account is approved (admins are always approved)
+    if (user.role !== 'ADMIN' && !user.isApproved) {
+      res.status(403).json({ error: 'account_pending', message: 'Your account is pending admin approval. Please try again later.' });
+      return;
+    }
+
     const payload = { sub: user.id, role: user.role } as const;
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
@@ -91,11 +107,45 @@ export function registerAuthRoutes(router: Router) {
     });
   });
 
+  // Admin: Get pending users
+  router.get('/admin/pending-users', authRequired, requireRole(['ADMIN']), async (_req: AuthedRequest, res: Response) => {
+    const users = await prisma.user.findMany({
+      where: { isApproved: false },
+      select: { id: true, email: true, fullName: true, role: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(users);
+  });
+
+  // Admin: Approve user
+  router.post('/admin/users/:userId/approve', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ userId: z.string() }).parse(req.params);
+
+    const user = await prisma.user.update({
+      where: { id: params.userId },
+      data: { isApproved: true },
+      select: { id: true, email: true, fullName: true, role: true, isApproved: true },
+    });
+
+    res.json(user);
+  });
+
+  // Admin: Reject/Delete user
+  router.delete('/admin/users/:userId', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ userId: z.string() }).parse(req.params);
+
+    await prisma.user.delete({
+      where: { id: params.userId },
+    });
+
+    res.json({ success: true });
+  });
+
   router.get('/me', authRequired, async (req: AuthedRequest, res: Response) => {
     const id = req.user!.id;
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, fullName: true, role: true, isProfileComplete: true, profileImage: true, createdAt: true },
+      select: { id: true, email: true, fullName: true, role: true, isProfileComplete: true, profileImage: true, isApproved: true, createdAt: true },
     });
     res.json(user);
   });

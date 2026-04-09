@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { useTheme } from '../ThemeContext';
-import { GraduationCap, Mail, Lock, AlertCircle, Sun, Moon } from 'lucide-react';
+import { GraduationCap, Mail, Lock, AlertCircle, Sun, Moon, Clock } from 'lucide-react';
 import lucyLogo from '../assets/lucy_logobg.png';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isPending, setIsPending] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
@@ -17,11 +18,15 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsPending(false);
     setLoading(true);
     try {
       await login(email, password);
       navigate('/');
     } catch (err) {
+      if (err.message?.includes('pending') || err.message?.includes('approval')) {
+        setIsPending(true);
+      }
       setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
@@ -52,8 +57,12 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8">
           {error && (
-            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3 text-red-700 dark:text-red-400">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <div className={`mb-4 p-4 rounded-lg flex items-center gap-3 ${
+              isPending 
+                ? 'bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400' 
+                : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+            }`}>
+              {isPending ? <Clock className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
               <span className="text-sm">{error}</span>
             </div>
           )}

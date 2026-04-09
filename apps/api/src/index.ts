@@ -12,6 +12,7 @@ import { registerLiveSessionRoutes } from './routes/liveSessionRoutes.js';
 import { registerGradebookRoutes } from './routes/gradebookRoutes.js';
 import { registerFaceVerificationRoutes } from './routes/faceVerificationRoutes.js';
 import { registerStudentProfileRoutes } from './routes/studentProfileRoutes.js';
+import { registerNotificationRoutes } from './routes/notificationRoutes.js';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ registerLiveSessionRoutes(router);
 registerGradebookRoutes(router);
 registerFaceVerificationRoutes(router);
 registerStudentProfileRoutes(router);
+registerNotificationRoutes(router);
 
 app.get('/health', (_req: express.Request, res: express.Response) => {
   res.json({ ok: true });

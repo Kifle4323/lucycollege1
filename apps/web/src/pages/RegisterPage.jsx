@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../api';
 import { useTheme } from '../ThemeContext';
-import { GraduationCap, Mail, Lock, User, AlertCircle, Users, Sun, Moon } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, AlertCircle, Users, Sun, Moon, CheckCircle } from 'lucide-react';
 import lucyLogo from '../assets/lucy_logobg.png';
 
 export default function RegisterPage() {
@@ -13,6 +13,7 @@ export default function RegisterPage() {
     role: 'STUDENT',
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const { darkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
@@ -20,10 +21,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
     try {
-      await register(form);
-      navigate('/login');
+      const result = await register(form);
+      setSuccess('Account created successfully! Please wait for admin approval before you can login.');
+      setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {
@@ -58,6 +61,13 @@ export default function RegisterPage() {
             <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3 text-red-700 dark:text-red-400">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3 text-green-700 dark:text-green-400">
+              <CheckCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm">{success}</span>
             </div>
           )}
 
@@ -118,7 +128,6 @@ export default function RegisterPage() {
                 >
                   <option value="STUDENT">Student</option>
                   <option value="TEACHER">Teacher</option>
-                  <option value="ADMIN">Admin</option>
                 </select>
               </div>
             </div>

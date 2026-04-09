@@ -16,10 +16,12 @@ import {
   Sun,
   Moon,
   FileText,
-  User
+  User,
+  Bell
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import lucyLogo from '../assets/lucy_logobg.png';
+import { getAdminNotifications } from '../api';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -27,10 +29,56 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState({
+    faceVerifications: 0,
+    studentProfiles: 0,
+    pendingUsers: 0,
+    total: 0,
+  });
+
+  // Fetch notifications for admin
+  const fetchNotifications = useCallback(async () => {
+    if (user?.role !== 'ADMIN') return;
+    try {
+      const data = await getAdminNotifications();
+      setNotifications(data);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  }, [user?.role]);
+
+  useEffect(() => {
+    fetchNotifications();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // Refresh notifications when location changes
+  useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      fetchNotifications();
+    }
+  }, [location.pathname, user?.role, fetchNotifications]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  // Get notification count for a specific path
+  const getNotificationCount = (path) => {
+    if (user?.role !== 'ADMIN') return 0;
+    switch (path) {
+      case '/admin/face-verifications':
+        return notifications.faceVerifications;
+      case '/admin/student-profiles':
+        return notifications.studentProfiles;
+      case '/admin/users':
+        return notifications.pendingUsers;
+      default:
+        return 0;
+    }
   };
 
   const navItems = [
@@ -82,12 +130,13 @@ export default function Layout({ children }) {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
+            const notifCount = getNotificationCount(item.path);
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors relative ${
                   isActive 
                     ? 'bg-primary-900 dark:bg-primary-800 text-white font-medium' 
                     : 'text-gray-600 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-900 dark:hover:text-white'
@@ -95,6 +144,11 @@ export default function Layout({ children }) {
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 {item.label}
+                {notifCount > 0 && (
+                  <span className="absolute right-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                    {notifCount > 99 ? '99+' : notifCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -120,6 +174,18 @@ export default function Layout({ children }) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Notification Bell - Admin only */}
+            {user?.role === 'ADMIN' && notifications.total > 0 && (
+              <div className="relative">
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white relative">
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full animate-bounce">
+                    {notifications.total > 99 ? '99+' : notifications.total}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Dark mode toggle */}
             <button
               onClick={toggleDarkMode}

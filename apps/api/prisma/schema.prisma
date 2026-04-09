@@ -46,6 +46,7 @@ model User {
   role            Role     @default(STUDENT)
   profileImage    String?  // Base64 encoded profile image
   isProfileComplete Boolean @default(false) // Student has completed profile
+  isApproved      Boolean  @default(false) // Account approved by admin
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

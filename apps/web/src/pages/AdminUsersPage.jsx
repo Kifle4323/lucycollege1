@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
-import { getUsers, adminCreateUser } from '../api';
+import { getUsers, adminCreateUser, getPendingUsers, approveUser, deleteUser } from '../api';
 import Layout from '../components/Layout';
-import { UserCircle, GraduationCap, BookOpen, Shield, Search, Plus, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { UserCircle, GraduationCap, BookOpen, Shield, Search, Plus, X, AlertCircle, CheckCircle, Clock, Trash2 } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [activeTab, setActiveTab] = useState('all'); // 'all' or 'pending'
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -23,10 +25,20 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (user?.role !== 'ADMIN') return;
-    getUsers()
-      .then(setUsers)
-      .finally(() => setLoading(false));
+    loadData();
   }, [user]);
+
+  const loadData = async () => {
+    try {
+      const [allUsers, pending] = await Promise.all([getUsers(), getPendingUsers()]);
+      setUsers(allUsers);
+      setPendingUsers(pending);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -50,6 +62,26 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleApproveUser = async (userId) => {
+    try {
+      await approveUser(userId);
+      setPendingUsers(pendingUsers.filter(u => u.id !== userId));
+      loadData(); // Refresh all users
+    } catch (err) {
+      alert('Failed to approve user');
+    }
+  };
+
+  const handleRejectUser = async (userId) => {
+    if (!confirm('Are you sure you want to reject and delete this user?')) return;
+    try {
+      await deleteUser(userId);
+      setPendingUsers(pendingUsers.filter(u => u.id !== userId));
+    } catch (err) {
+      alert('Failed to reject user');
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.fullName.toLowerCase().includes(search.toLowerCase()) ||
                          u.email.toLowerCase().includes(search.toLowerCase());
@@ -61,6 +93,7 @@ export default function AdminUsersPage() {
     STUDENT: users.filter(u => u.role === 'STUDENT').length,
     TEACHER: users.filter(u => u.role === 'TEACHER').length,
     ADMIN: users.filter(u => u.role === 'ADMIN').length,
+    PENDING: pendingUsers.length,
   };
 
   if (user?.role !== 'ADMIN') return <div className="p-8 text-center">Access denied</div>;
@@ -185,7 +218,7 @@ export default function AdminUsersPage() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
@@ -219,36 +252,149 @@ export default function AdminUsersPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or email..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
+                <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{roleStats.PENDING}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
+              </div>
             </div>
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-            >
-              <option value="ALL">All Roles</option>
-              <option value="STUDENT">Students</option>
-              <option value="TEACHER">Teachers</option>
-              <option value="ADMIN">Admins</option>
-            </select>
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'all'
+                ? 'bg-primary-900 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            All Users
+          </button>
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'pending'
+                ? 'bg-yellow-500 text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Pending Approval
+            {roleStats.PENDING > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-xs ${activeTab === 'pending' ? 'bg-white/20' : 'bg-yellow-100 text-yellow-700'}`}>
+                {roleStats.PENDING}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Pending Users List */}
+        {activeTab === 'pending' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+            {pendingUsers.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                No pending users
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <tr>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">User</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Role</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Registered</th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {pendingUsers.map(u => (
+                    <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+                            <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{u.fullName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{u.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          u.role === 'STUDENT' ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300' :
+                          u.role === 'TEACHER' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                          'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleApproveUser(u.id)}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectUser(u.id)}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* Filters - only show for all users tab */}
+        {activeTab === 'all' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name or email..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+              >
+                <option value="ALL">All Roles</option>
+                <option value="STUDENT">Students</option>
+                <option value="TEACHER">Teachers</option>
+                <option value="ADMIN">Admins</option>
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Users Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {activeTab === 'all' && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
@@ -300,7 +446,8 @@ export default function AdminUsersPage() {
               No users found
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
