@@ -4,11 +4,11 @@ import { prisma } from '../db.js';
 import { authRequired, requireRole, type AuthedRequest } from '../middleware.js';
 
 export function registerFaceVerificationRoutes(router: Router) {
-  // Student: Update profile with image
-  router.patch('/users/me/profile', authRequired, requireRole(['STUDENT']), async (req: AuthedRequest, res: Response) => {
+  // All users: Update profile with image
+  router.patch('/users/me/profile', authRequired, async (req: AuthedRequest, res: Response) => {
     const body = z.object({
       fullName: z.string().min(2).optional(),
-      profileImage: z.string().min(1), // Base64 encoded image
+      profileImage: z.string().optional(), // Base64 encoded image
     }).parse(req.body);
 
     const user = await prisma.user.update({
@@ -16,13 +16,14 @@ export function registerFaceVerificationRoutes(router: Router) {
       data: {
         fullName: body.fullName,
         profileImage: body.profileImage,
-        isProfileComplete: true,
+        ...(body.profileImage ? { isProfileComplete: true } : {}),
       },
       select: {
         id: true,
         email: true,
         fullName: true,
         role: true,
+        profileImage: true,
         isProfileComplete: true,
       },
     });

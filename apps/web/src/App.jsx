@@ -14,6 +14,7 @@ import LiveMeetingPage from './pages/LiveMeetingPage';
 import GradebookPage from './pages/GradebookPage';
 import CompleteProfilePage from './pages/CompleteProfilePage';
 import AdminFaceVerificationPage from './pages/AdminFaceVerificationPage';
+import SettingsPage from './pages/SettingsPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -126,6 +127,14 @@ export default function App() {
         element={
           <PrivateRoute>
             <AdminFaceVerificationPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <SettingsPage />
           </PrivateRoute>
         }
       />

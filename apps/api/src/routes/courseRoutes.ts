@@ -94,7 +94,7 @@ export function registerCourseRoutes(router: Router) {
   // Get all users (for admin to assign teachers/students)
   router.get('/users', authRequired, requireRole(['ADMIN']), async (_req: Request, res: Response) => {
     const users = await prisma.user.findMany({
-      select: { id: true, email: true, fullName: true, role: true, createdAt: true },
+      select: { id: true, email: true, fullName: true, role: true, profileImage: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
     res.json(users);

@@ -42,6 +42,24 @@ export async function getMe() {
   return apiFetch('/me');
 }
 
+// Update profile (name and picture)
+export async function updateMyProfile(data) {
+  return apiFetch('/users/me/profile', { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+// Change password
+export async function changePassword(currentPassword, newPassword) {
+  return apiFetch('/me/change-password', { 
+    method: 'POST', 
+    body: JSON.stringify({ currentPassword, newPassword }) 
+  });
+}
+
+// Admin: create user
+export async function adminCreateUser(data) {
+  return apiFetch('/admin/users', { method: 'POST', body: JSON.stringify(data) });
+}
+
 // Classes
 export async function getClasses() {
   return apiFetch('/classes');

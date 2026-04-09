@@ -47,6 +47,7 @@ export default function Layout({ children }) {
       { path: '/my-classes', label: 'My Classes', icon: GraduationCap },
       { path: '/live-sessions', label: 'Live Classes', icon: Video },
     ] : []),
+    { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -128,11 +129,19 @@ export default function Layout({ children }) {
               <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.fullName}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role?.toLowerCase()}</p>
             </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary-900 dark:bg-primary-700 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-sm sm:text-base">
-                {user?.fullName?.charAt(0)?.toUpperCase()}
-              </span>
-            </div>
+            {user?.profileImage ? (
+              <img 
+                src={user.profileImage} 
+                alt={user.fullName} 
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-primary-900 dark:border-primary-700"
+              />
+            ) : (
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary-900 dark:bg-primary-700 rounded-full flex items-center justify-center">
+                <span className="text-white font-semibold text-sm sm:text-base">
+                  {user?.fullName?.charAt(0)?.toUpperCase()}
+                </span>
+              </div>
+            )}
             <button
               onClick={handleLogout}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white"
