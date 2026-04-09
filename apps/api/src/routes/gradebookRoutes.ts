@@ -213,19 +213,33 @@ export function registerGradebookRoutes(router: Router) {
       },
     });
 
+    // Define types for the assessment data
+    type AttemptType = { studentId: string; status: string; score: number | null };
+    type AssessmentType = {
+      id: string;
+      title: string;
+      examType: string;
+      maxScore: number | null;
+      questions: unknown[];
+      attempts: AttemptType[];
+    };
+    const typedAssessments = assessments as AssessmentType[];
+
     // Get attendance
     const attendance = await prisma.attendance.findMany({
       where: { courseId: params.courseId },
     });
+    type AttendanceType = { studentId: string; score: number };
+    const typedAttendance = attendance as AttendanceType[];
 
     // Calculate grades for each student
     const gradebook = uniqueStudents.map(student => {
-      const studentAttempts = assessments.flatMap(a =>
+      const studentAttempts = typedAssessments.flatMap(a =>
         a.attempts.filter(attempt => attempt.studentId === student.id)
       );
 
       // Quiz average (average of all QUIZ assessments)
-      const quizzes = assessments.filter(a => a.examType === 'QUIZ');
+      const quizzes = typedAssessments.filter(a => a.examType === 'QUIZ');
       let quizScore = 0;
       let quizCount = 0;
       for (const quiz of quizzes) {
@@ -238,7 +252,7 @@ export function registerGradebookRoutes(router: Router) {
       const quizAverage = quizCount > 0 ? quizScore / quizCount : 0;
 
       // Midterm score
-      const midterm = assessments.find(a => a.examType === 'MIDTERM');
+      const midterm = typedAssessments.find(a => a.examType === 'MIDTERM');
       let midtermScore = 0;
       if (midterm) {
         const attempt = midterm.attempts.find(at => at.studentId === student.id && at.status === 'GRADED');
@@ -248,7 +262,7 @@ export function registerGradebookRoutes(router: Router) {
       }
 
       // Final score
-      const final = assessments.find(a => a.examType === 'FINAL');
+      const final = typedAssessments.find(a => a.examType === 'FINAL');
       let finalScore = 0;
       if (final) {
         const attempt = final.attempts.find(at => at.studentId === student.id && at.status === 'GRADED');
@@ -258,7 +272,7 @@ export function registerGradebookRoutes(router: Router) {
       }
 
       // Attendance score
-      const studentAttendance = attendance.find(a => a.studentId === student.id);
+      const studentAttendance = typedAttendance.find(a => a.studentId === student.id);
       const attendanceScore = studentAttendance?.score || 0;
 
       // Calculate total grade
@@ -281,7 +295,7 @@ export function registerGradebookRoutes(router: Router) {
     res.json({
       config,
       gradebook,
-      assessments: assessments.map(a => ({
+      assessments: typedAssessments.map(a => ({
         id: a.id,
         title: a.title,
         examType: a.examType,
@@ -311,6 +325,18 @@ export function registerGradebookRoutes(router: Router) {
       },
     });
 
+    // Define types for the assessment data
+    type StudentAttemptType = { studentId: string; status: string; score: number | null };
+    type StudentAssessmentType = {
+      id: string;
+      title: string;
+      examType: string;
+      maxScore: number | null;
+      questions: unknown[];
+      attempts: StudentAttemptType[];
+    };
+    const typedAssessments = assessments as StudentAssessmentType[];
+
     // Get attendance
     const attendance = await prisma.attendance.findUnique({
       where: {
@@ -322,10 +348,10 @@ export function registerGradebookRoutes(router: Router) {
     });
 
     // Quiz average
-    const quizzes = assessments.filter(a => a.examType === 'QUIZ');
+    const quizzes = typedAssessments.filter(a => a.examType === 'QUIZ');
     let quizScore = 0;
     let quizCount = 0;
-    const quizDetails = [];
+    const quizDetails: { title: string; score: number; maxScore: number; percent: number }[] = [];
     for (const quiz of quizzes) {
       const attempt = quiz.attempts.find(at => at.studentId === req.user!.id && at.status === 'GRADED');
       if (attempt && attempt.score !== null && quiz.maxScore) {
@@ -343,9 +369,9 @@ export function registerGradebookRoutes(router: Router) {
     const quizAverage = quizCount > 0 ? quizScore / quizCount : 0;
 
     // Midterm score
-    const midterm = assessments.find(a => a.examType === 'MIDTERM');
+    const midterm = typedAssessments.find(a => a.examType === 'MIDTERM');
     let midtermScore = 0;
-    let midtermDetail = null;
+    let midtermDetail: { title: string; score: number; maxScore: number; percent: number } | null = null;
     if (midterm) {
       const attempt = midterm.attempts.find(at => at.studentId === req.user!.id && at.status === 'GRADED');
       if (attempt && attempt.score !== null && midterm.maxScore) {
@@ -360,9 +386,9 @@ export function registerGradebookRoutes(router: Router) {
     }
 
     // Final score
-    const final = assessments.find(a => a.examType === 'FINAL');
+    const final = typedAssessments.find(a => a.examType === 'FINAL');
     let finalScore = 0;
-    let finalDetail = null;
+    let finalDetail: { title: string; score: number; maxScore: number; percent: number } | null = null;
     if (final) {
       const attempt = final.attempts.find(at => at.studentId === req.user!.id && at.status === 'GRADED');
       if (attempt && attempt.score !== null && final.maxScore) {
