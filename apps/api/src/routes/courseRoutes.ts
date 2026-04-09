@@ -130,8 +130,8 @@ export function registerCourseRoutes(router: Router) {
     });
 
     // Flatten students from all classes
-    const students = courseClasses.flatMap(cc =>
-      cc.class.students.map(s => ({
+    const students = courseClasses.flatMap((cc: typeof courseClasses[number]) =>
+      cc.class.students.map((s: typeof cc.class.students[number]) => ({
         ...s.student,
         classId: cc.classId,
         className: cc.class.name,
@@ -139,8 +139,8 @@ export function registerCourseRoutes(router: Router) {
     );
 
     // Remove duplicates (student might be in multiple classes)
-    const uniqueStudents = students.reduce((acc, student) => {
-      if (!acc.find(s => s.id === student.id)) {
+    const uniqueStudents = students.reduce((acc: typeof students, student: typeof students[number]) => {
+      if (!acc.find((s: typeof students[number]) => s.id === student.id)) {
         acc.push(student);
       }
       return acc;
@@ -173,7 +173,7 @@ export function registerCourseRoutes(router: Router) {
       return;
     }
 
-    const students = courseClass.class.students.map(s => ({
+    const students = courseClass.class.students.map((s: typeof courseClass.class.students[number]) => ({
       ...s.student,
       classId: courseClass.classId,
       className: courseClass.class.name,
@@ -193,7 +193,7 @@ export function registerCourseRoutes(router: Router) {
       select: { id: true },
     });
 
-    const assessmentIds = assessments.map(a => a.id);
+    const assessmentIds = assessments.map((a: { id: string }) => a.id);
 
     // Get student's attempts for these assessments
     const attempts = await prisma.attempt.findMany({
