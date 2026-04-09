@@ -235,21 +235,21 @@ export default function GradebookPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setActiveView('gradebook')}
-              className={`px-4 py-2 font-medium rounded-lg ${activeView === 'gradebook' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 font-medium rounded-lg ${activeView === 'gradebook' ? 'bg-primary-900 text-white' : 'bg-gray-100 text-gray-700'}`}
             >
               <Calculator className="w-4 h-4 inline mr-2" />
               Gradebook
             </button>
             <button
               onClick={() => setActiveView('config')}
-              className={`px-4 py-2 font-medium rounded-lg ${activeView === 'config' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 font-medium rounded-lg ${activeView === 'config' ? 'bg-primary-900 text-white' : 'bg-gray-100 text-gray-700'}`}
             >
               <Settings className="w-4 h-4 inline mr-2" />
               Weights
             </button>
             <button
               onClick={() => setActiveView('attendance')}
-              className={`px-4 py-2 font-medium rounded-lg ${activeView === 'attendance' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 font-medium rounded-lg ${activeView === 'attendance' ? 'bg-primary-900 text-white' : 'bg-gray-100 text-gray-700'}`}
             >
               <UserCheck className="w-4 h-4 inline mr-2" />
               Attendance
@@ -321,7 +321,7 @@ export default function GradebookPage() {
             <button
               onClick={handleSaveConfig}
               disabled={saving}
-              className="mt-6 px-6 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white font-medium rounded-lg"
+              className="mt-6 px-6 py-2 bg-primary-900 hover:bg-primary-800 disabled:bg-gray-300 text-white font-medium rounded-lg"
             >
               <Save className="w-4 h-4 inline mr-2" />
               Save Weights
@@ -377,7 +377,7 @@ export default function GradebookPage() {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleSaveAttendance(g.student.id)}
-                        className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded"
+                        className="px-3 py-1 bg-primary-900 hover:bg-primary-800 text-white text-sm font-medium rounded"
                       >
                         Save
                       </button>

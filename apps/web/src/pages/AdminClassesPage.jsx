@@ -153,7 +153,7 @@ export default function AdminClassesPage() {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg transition-colors"
           >
             <Plus className="w-5 h-5" />
             Create Class
@@ -168,7 +168,7 @@ export default function AdminClassesPage() {
             <p className="text-gray-500 mb-4">Create your first class to get started</p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg transition-colors"
             >
               <Plus className="w-5 h-5" />
               Create Class
@@ -339,7 +339,7 @@ export default function AdminClassesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg"
+                  className="px-4 py-2 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg"
                 >
                   Create
                 </button>
@@ -425,7 +425,7 @@ export default function AdminClassesPage() {
                       </select>
                       <button
                         onClick={() => { handleAssignCourse(c.id, null); setAddModal({ type: null, classId: null }); }}
-                        className="mt-2 w-full py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg"
+                        className="mt-2 w-full py-2 bg-primary-900 hover:bg-primary-800 text-white text-sm font-medium rounded-lg"
                       >
                         Assign without teacher
                       </button>

@@ -79,7 +79,7 @@ export default function LiveMeetingPage() {
           <p className="text-gray-500">{error}</p>
           <button
             onClick={() => navigate('/live-sessions')}
-            className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg"
+            className="mt-4 px-4 py-2 bg-primary-900 text-white rounded-lg"
           >
             Back to Live Sessions
           </button>
@@ -95,7 +95,7 @@ export default function LiveMeetingPage() {
         <div className="h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-900">
           <div className="bg-gray-800 rounded-xl p-8 max-w-md w-full mx-4">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary-900 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Video className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-xl font-semibold text-white">{session?.title}</h2>
@@ -117,7 +117,7 @@ export default function LiveMeetingPage() {
               <button
                 onClick={handleJoin}
                 disabled={!displayName.trim()}
-                className="w-full py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+                className="w-full py-3 bg-primary-900 hover:bg-primary-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
               >
                 Join Meeting
               </button>

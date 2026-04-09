@@ -166,7 +166,7 @@ export default function LiveSessionsPage() {
             {user?.role === 'TEACHER' && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg transition-colors"
               >
                 <Plus className="w-5 h-5" />
                 Schedule Class
@@ -237,7 +237,7 @@ export default function LiveSessionsPage() {
                           {session.status === 'LIVE' && (
                             <button
                               onClick={() => handleJoinSession(session)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg transition-colors"
                             >
                               <Video className="w-4 h-4" />
                               Rejoin
@@ -350,7 +350,7 @@ export default function LiveSessionsPage() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg"
+                    className="flex-1 px-4 py-2 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg"
                   >
                     Schedule Class
                   </button>

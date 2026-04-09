@@ -4,6 +4,7 @@ import { useAuth } from '../AuthContext';
 import { updateProfile, getProfileStatus } from '../api';
 import Layout from '../components/Layout';
 import { Camera, User, CheckCircle, AlertCircle } from 'lucide-react';
+import lucyLogo from '../assets/lucy_logobg.png';
 
 export default function CompleteProfilePage() {
   const { user, refreshUser } = useAuth();
@@ -103,12 +104,12 @@ export default function CompleteProfilePage() {
   return (
     <Layout>
       <div className="max-w-xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="w-8 h-8 text-primary-600" />
+            <div className="w-16 h-16 bg-primary-900 rounded-full flex items-center justify-center mx-auto mb-4 p-2">
+              <img src={lucyLogo} alt="Lucy College" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
+            <h1 className="text-2xl font-bold text-primary-900">Complete Your Profile</h1>
             <p className="text-gray-500 mt-2">
               Please provide your profile photo for exam verification
             </p>
@@ -189,7 +190,7 @@ export default function CompleteProfilePage() {
                       <button
                         type="button"
                         onClick={startCamera}
-                        className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg"
+                        className="px-6 py-3 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg"
                       >
                         Start Camera
                       </button>
@@ -215,7 +216,7 @@ export default function CompleteProfilePage() {
             <button
               type="submit"
               disabled={loading || !capturedImage}
-              className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-medium rounded-lg transition-colors"
+              className="w-full py-3 bg-primary-900 hover:bg-primary-800 disabled:bg-gray-300 text-white font-medium rounded-lg transition-colors"
             >
               {loading ? 'Saving...' : 'Complete Profile'}
             </button>

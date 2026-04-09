@@ -162,7 +162,7 @@ export default function AdminFaceVerificationPage() {
                     {!v.adminReviewed && (
                       <button
                         onClick={() => setSelectedVerification(v)}
-                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg"
+                        className="px-4 py-2 bg-primary-900 hover:bg-primary-800 text-white font-medium rounded-lg"
                       >
                         <Eye className="w-4 h-4 inline mr-1" />
                         Review
