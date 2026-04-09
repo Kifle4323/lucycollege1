@@ -130,8 +130,19 @@ export function registerCourseRoutes(router: Router) {
     });
 
     // Flatten students from all classes
-    const students = courseClasses.flatMap((cc: typeof courseClasses[number]) =>
-      cc.class.students.map((s: typeof cc.class.students[number]) => ({
+    type CourseClassWithStudents = {
+      classId: string;
+      class: {
+        id: string;
+        name: string;
+        students: { student: { id: string; fullName: string; email: string } }[];
+      };
+    };
+    
+    const typedCourseClasses = courseClasses as CourseClassWithStudents[];
+    
+    const students = typedCourseClasses.flatMap(cc =>
+      cc.class.students.map(s => ({
         ...s.student,
         classId: cc.classId,
         className: cc.class.name,
@@ -139,12 +150,13 @@ export function registerCourseRoutes(router: Router) {
     );
 
     // Remove duplicates (student might be in multiple classes)
-    const uniqueStudents = students.reduce((acc: typeof students, student: typeof students[number]) => {
-      if (!acc.find((s: typeof students[number]) => s.id === student.id)) {
+    type StudentWithClass = { id: string; fullName: string; email: string; classId: string; className: string };
+    const uniqueStudents = students.reduce<StudentWithClass[]>((acc, student) => {
+      if (!acc.find(s => s.id === student.id)) {
         acc.push(student);
       }
       return acc;
-    }, [] as typeof students);
+    }, []);
 
     res.json(uniqueStudents);
   });
@@ -173,7 +185,8 @@ export function registerCourseRoutes(router: Router) {
       return;
     }
 
-    const students = courseClass.class.students.map((s: typeof courseClass.class.students[number]) => ({
+    type StudentEnrollment = { student: { id: string; fullName: string; email: string } };
+    const students = (courseClass.class.students as StudentEnrollment[]).map(s => ({
       ...s.student,
       classId: courseClass.classId,
       className: courseClass.class.name,

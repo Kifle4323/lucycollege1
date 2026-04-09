@@ -172,8 +172,20 @@ export function registerGradebookRoutes(router: Router) {
       },
     });
 
-    const students = courseClasses.flatMap((cc: typeof courseClasses[number]) =>
-      cc.class.students.map((s: typeof cc.class.students[number]) => ({
+    // Flatten students from all classes
+    type CourseClassWithStudents = {
+      classId: string;
+      class: {
+        id: string;
+        name: string;
+        students: { student: { id: string; fullName: string; email: string } }[];
+      };
+    };
+    
+    const typedCourseClasses = courseClasses as CourseClassWithStudents[];
+    
+    const students = typedCourseClasses.flatMap(cc =>
+      cc.class.students.map(s => ({
         ...s.student,
         classId: cc.classId,
         className: cc.class.name,
@@ -181,12 +193,13 @@ export function registerGradebookRoutes(router: Router) {
     );
 
     // Remove duplicates
-    const uniqueStudents = students.reduce((acc: typeof students, student: typeof students[number]) => {
-      if (!acc.find((s: typeof students[number]) => s.id === student.id)) {
+    type StudentWithClass = { id: string; fullName: string; email: string; classId: string; className: string };
+    const uniqueStudents = students.reduce<StudentWithClass[]>((acc, student) => {
+      if (!acc.find(s => s.id === student.id)) {
         acc.push(student);
       }
       return acc;
-    }, [] as typeof students);
+    }, []);
 
     // Get all assessments for this course
     const assessments = await prisma.assessment.findMany({
