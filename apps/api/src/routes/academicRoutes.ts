@@ -196,32 +196,37 @@ export function registerAcademicRoutes(router: Router) {
 
   // Create course section (assign course to teacher for a semester)
   router.post('/admin/course-sections', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
-    const body = z.object({
-      courseId: z.string(),
-      semesterId: z.string(),
-      teacherId: z.string(),
-      classId: z.string().optional(), // Optional: assign to a class
-      sectionCode: z.string().min(1), // e.g., "CS101-A"
-      schedule: z.string().optional(),
-      room: z.string().optional(),
-      maxCapacity: z.number().int().optional(),
-    }).parse(req.body);
+    try {
+      const body = z.object({
+        courseId: z.string(),
+        semesterId: z.string(),
+        teacherId: z.string(),
+        classId: z.string().nullable().optional(), // Optional: assign to a class
+        sectionCode: z.string().min(1), // e.g., "CS101-A"
+        schedule: z.string().optional(),
+        room: z.string().optional(),
+        maxCapacity: z.number().int().optional(),
+      }).parse(req.body);
 
-    const courseSection = await prisma.courseSection.create({
-      data: {
-        courseId: body.courseId,
-        semesterId: body.semesterId,
-        teacherId: body.teacherId,
-        classId: body.classId,
-        sectionCode: body.sectionCode,
-        schedule: body.schedule,
-        room: body.room,
-        maxCapacity: body.maxCapacity,
-      },
-      include: { course: true, semester: true, teacher: true, class: true },
-    });
+      const courseSection = await prisma.courseSection.create({
+        data: {
+          courseId: body.courseId,
+          semesterId: body.semesterId,
+          teacherId: body.teacherId,
+          classId: body.classId || null,
+          sectionCode: body.sectionCode,
+          schedule: body.schedule,
+          room: body.room,
+          maxCapacity: body.maxCapacity,
+        },
+        include: { course: true, semester: true, teacher: true, class: true },
+      });
 
-    res.status(201).json(courseSection);
+      res.status(201).json(courseSection);
+    } catch (error) {
+      console.error('Error creating course section:', error);
+      res.status(500).json({ error: error.message || 'Failed to create course section' });
+    }
   });
 
   // Get all course sections for a semester

@@ -196,7 +196,12 @@ export default function AdminAcademicPage() {
   async function handleCreateCourseSection(e) {
     e.preventDefault();
     try {
-      const newSection = await createCourseSection(courseSectionForm);
+      // Prepare data - convert empty classId to null
+      const data = {
+        ...courseSectionForm,
+        classId: courseSectionForm.classId || null
+      };
+      const newSection = await createCourseSection(data);
       setCourseSections([...courseSections, newSection]);
       setCourseSectionForm({ courseId: '', semesterId: selectedSemester, teacherId: '', classId: '', sectionCode: '' });
     } catch (err) {
@@ -207,7 +212,12 @@ export default function AdminAcademicPage() {
   async function handleUpdateCourseSection(e) {
     e.preventDefault();
     try {
-      const updated = await updateCourseSection(editingCourseSection.id, courseSectionForm);
+      // Prepare data - convert empty classId to null
+      const data = {
+        ...courseSectionForm,
+        classId: courseSectionForm.classId || null
+      };
+      const updated = await updateCourseSection(editingCourseSection.id, data);
       setCourseSections(courseSections.map(s => s.id === updated.id ? updated : s));
       setEditingCourseSection(null);
       setCourseSectionForm({ courseId: '', semesterId: selectedSemester, teacherId: '', classId: '', sectionCode: '' });
