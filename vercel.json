@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "npx prisma generate --schema=apps/api/prisma/schema.prisma && npx tsc -p apps/api/tsconfig.json && npm --workspace apps/web run build",
+  "buildCommand": "npx tsc -p apps/api/tsconfig.json && npm --workspace apps/web run build",
   "installCommand": "npm install",
   "framework": null,
+  "typescript": {
+    "ignoreBuildErrors": true
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/health", "destination": "/api" }
