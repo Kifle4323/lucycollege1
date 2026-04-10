@@ -444,6 +444,9 @@ model Semester {
   endDate         DateTime
   registrationStart DateTime?
   registrationEnd   DateTime?
+  // Official exam dates set by admin
+  midtermExamDate   DateTime?   // Official midterm exam date
+  finalExamDate     DateTime?   // Official final exam date
   examPeriodStart   DateTime?
   examPeriodEnd     DateTime?
   gradingDeadline   DateTime?
@@ -518,18 +521,24 @@ model StudentGrade {
   enrollment      StudentEnrollment @relation(fields: [enrollmentId], references: [id])
 }
 
-// Exam Schedule for a course section (Midterm, Final, Quiz)
+// Exam Schedule for a course section (Midterm, Final)
+// Teacher proposes early exam date; if all students agree, exam can be early
 model ExamSchedule {
   id              String   @id @default(cuid())
   courseSectionId String
-  examType        ExamType // QUIZ, MIDTERM, FINAL
-  title           String
-  scheduledDate   DateTime
+  examType        ExamType // MIDTERM, FINAL
+  // Official date from semester (set by admin)
+  officialDate    DateTime?
+  // Teacher's proposed early date (if they want to move it earlier)
+  proposedDate    DateTime?
   duration        Int      // Duration in minutes
   location        String?  // Exam room/location
   instructions    String?
-  isEarlyAllowed  Boolean  @default(false) // Teacher allows early exam
-  earlyExamDeadline DateTime? // Deadline for early exam requests
+  // Early exam proposal status
+  earlyExamStatus String?  @default("NONE") // NONE, PROPOSED, ALL_AGREED, APPROVED, REJECTED
+  proposalDeadline DateTime? // Deadline for students to respond to early exam proposal
+  // Final confirmed date (either proposed or official)
+  confirmedDate   DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -539,13 +548,14 @@ model ExamSchedule {
   @@unique([courseSectionId, examType])
 }
 
-// Early Exam Request - Students agree to take exam early
+// Early Exam Request - Students agree/disagree to take exam early
 model EarlyExamRequest {
   id             String   @id @default(cuid())
   examScheduleId String
   studentId      String
-  agreedAt       DateTime @default(now()) // When student agreed
-  status         String  @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
+  agreed         Boolean  @default(false) // true = agreed to early, false = wants official date
+  respondedAt    DateTime? // When student responded
+  createdAt      DateTime @default(now())
 
   examSchedule   ExamSchedule @relation(fields: [examScheduleId], references: [id])
   student        User        @relation(fields: [studentId], references: [id])

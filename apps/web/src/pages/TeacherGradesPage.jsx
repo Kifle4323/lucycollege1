@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   getTeacherSections, getSectionStudents, enterGrade, submitSectionGrades,
   createExamSchedule, getSectionExamSchedules, updateExamSchedule, deleteExamSchedule,
-  getEarlyExamRequests, approveEarlyExam
+  proposeEarlyExam, cancelEarlyExamProposal, getEarlyExamResponses, confirmEarlyExam
 } from '../api.js';
 
 export default function TeacherGradesPage() {
@@ -10,7 +10,7 @@ export default function TeacherGradesPage() {
   const [selectedSection, setSelectedSection] = useState(null);
   const [students, setStudents] = useState([]);
   const [examSchedules, setExamSchedules] = useState([]);
-  const [earlyRequests, setEarlyRequests] = useState(null);
+  const [earlyResponses, setEarlyResponses] = useState(null);
   const [activeTab, setActiveTab] = useState('grades');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,15 +20,18 @@ export default function TeacherGradesPage() {
   // Exam schedule form
   const [examForm, setExamForm] = useState({
     examType: 'MIDTERM',
-    title: '',
-    scheduledDate: '',
     duration: 60,
     location: '',
     instructions: '',
-    isEarlyAllowed: false,
-    earlyExamDeadline: '',
   });
   const [editingExam, setEditingExam] = useState(null);
+
+  // Early exam proposal form
+  const [earlyProposalForm, setEarlyProposalForm] = useState({
+    proposedDate: '',
+    proposalDeadline: '',
+  });
+  const [showEarlyProposal, setShowEarlyProposal] = useState(false);
 
   useEffect(() => {
     loadSections();
@@ -50,7 +53,8 @@ export default function TeacherGradesPage() {
     setActiveTab('grades');
     setSuccess('');
     setError('');
-    setEarlyRequests(null);
+    setEarlyResponses(null);
+    setShowEarlyProposal(false);
     try {
       const [studentsData, examsData] = await Promise.all([
         getSectionStudents(section.id),
@@ -130,15 +134,11 @@ export default function TeacherGradesPage() {
       setExamSchedules([...examSchedules, newExam]);
       setExamForm({
         examType: 'MIDTERM',
-        title: '',
-        scheduledDate: '',
         duration: 60,
         location: '',
         instructions: '',
-        isEarlyAllowed: false,
-        earlyExamDeadline: '',
       });
-      setSuccess('Exam schedule created!');
+      setSuccess('Exam schedule created! Official date from semester is used.');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -155,13 +155,9 @@ export default function TeacherGradesPage() {
       setEditingExam(null);
       setExamForm({
         examType: 'MIDTERM',
-        title: '',
-        scheduledDate: '',
         duration: 60,
         location: '',
         instructions: '',
-        isEarlyAllowed: false,
-        earlyExamDeadline: '',
       });
       setSuccess('Exam schedule updated!');
     } catch (err) {
@@ -186,31 +182,58 @@ export default function TeacherGradesPage() {
     setEditingExam(exam);
     setExamForm({
       examType: exam.examType,
-      title: exam.title,
-      scheduledDate: exam.scheduledDate.split('T')[0],
       duration: exam.duration,
       location: exam.location || '',
       instructions: exam.instructions || '',
-      isEarlyAllowed: exam.isEarlyAllowed,
-      earlyExamDeadline: exam.earlyExamDeadline?.split('T')[0] || '',
     });
   }
 
-  async function loadEarlyRequests(examId) {
+  async function handleProposeEarlyExam(examId, e) {
+    e.preventDefault();
+    setSaving(true);
     try {
-      const data = await getEarlyExamRequests(examId);
-      setEarlyRequests(data);
+      const updated = await proposeEarlyExam(examId, earlyProposalForm);
+      setExamSchedules(examSchedules.map(ex => ex.id === updated.id ? updated : ex));
+      setShowEarlyProposal(false);
+      setEarlyProposalForm({ proposedDate: '', proposalDeadline: '' });
+      setSuccess('Early exam proposed! Students will be notified to respond.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCancelEarlyProposal(examId) {
+    if (!confirm('Cancel early exam proposal?')) return;
+    try {
+      await cancelEarlyExamProposal(examId);
+      const examsData = await getSectionExamSchedules(selectedSection.id);
+      setExamSchedules(examsData);
+      setEarlyResponses(null);
+      setSuccess('Early exam proposal cancelled.');
     } catch (err) {
       setError(err.message);
     }
   }
 
-  async function handleApproveEarlyExam(examId) {
-    if (!confirm('Approve early exam for all students who agreed?')) return;
+  async function loadEarlyResponses(examId) {
     try {
-      await approveEarlyExam(examId);
-      setSuccess('Early exam approved!');
-      loadEarlyRequests(examId);
+      const data = await getEarlyExamResponses(examId);
+      setEarlyResponses(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleConfirmEarlyExam(examId) {
+    if (!confirm('Confirm early exam? This will set the exam date to the proposed early date.')) return;
+    try {
+      await confirmEarlyExam(examId);
+      const examsData = await getSectionExamSchedules(selectedSection.id);
+      setExamSchedules(examsData);
+      setEarlyResponses(null);
+      setSuccess('Early exam confirmed! Exam will be held on the proposed date.');
     } catch (err) {
       setError(err.message);
     }
@@ -414,8 +437,15 @@ export default function TeacherGradesPage() {
                   {/* Exam Form */}
                   <div className="border rounded p-4">
                     <h3 className="font-semibold mb-4">
-                      {editingExam ? 'Edit Exam Schedule' : 'Schedule New Exam'}
+                      {editingExam ? 'Edit Exam Details' : 'Create Exam Schedule'}
                     </h3>
+                    {!editingExam && (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4 text-sm">
+                        <p className="font-medium text-blue-800">Official Exam Dates</p>
+                        <p className="text-blue-700">Midterm: {selectedSection?.semester?.midtermExamDate ? new Date(selectedSection.semester.midtermExamDate).toLocaleDateString() : 'Not set by admin'}</p>
+                        <p className="text-blue-700">Final: {selectedSection?.semester?.finalExamDate ? new Date(selectedSection.semester.finalExamDate).toLocaleDateString() : 'Not set by admin'}</p>
+                      </div>
+                    )}
                     <form onSubmit={editingExam ? handleUpdateExam : handleCreateExam} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -424,8 +454,8 @@ export default function TeacherGradesPage() {
                             value={examForm.examType}
                             onChange={e => setExamForm({ ...examForm, examType: e.target.value })}
                             className="w-full border rounded px-3 py-2"
+                            disabled={editingExam}
                           >
-                            <option value="QUIZ">Quiz</option>
                             <option value="MIDTERM">Midterm</option>
                             <option value="FINAL">Final</option>
                           </select>
@@ -440,27 +470,6 @@ export default function TeacherGradesPage() {
                             className="w-full border rounded px-3 py-2"
                           />
                         </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Title</label>
-                        <input
-                          type="text"
-                          value={examForm.title}
-                          onChange={e => setExamForm({ ...examForm, title: e.target.value })}
-                          className="w-full border rounded px-3 py-2"
-                          placeholder="e.g., Midterm Exam"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Date & Time</label>
-                        <input
-                          type="datetime-local"
-                          value={examForm.scheduledDate}
-                          onChange={e => setExamForm({ ...examForm, scheduledDate: e.target.value })}
-                          className="w-full border rounded px-3 py-2"
-                          required
-                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1">Location</label>
@@ -482,29 +491,6 @@ export default function TeacherGradesPage() {
                           placeholder="Exam instructions for students..."
                         />
                       </div>
-                      <div className="border-t pt-4">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={examForm.isEarlyAllowed}
-                            onChange={e => setExamForm({ ...examForm, isEarlyAllowed: e.target.checked })}
-                            className="rounded"
-                          />
-                          <span className="text-sm">Allow students to request early exam</span>
-                        </label>
-                        {examForm.isEarlyAllowed && (
-                          <div className="mt-2">
-                            <label className="block text-sm font-medium mb-1">Early Request Deadline</label>
-                            <input
-                              type="date"
-                              value={examForm.earlyExamDeadline}
-                              onChange={e => setExamForm({ ...examForm, earlyExamDeadline: e.target.value })}
-                              className="w-full border rounded px-3 py-2"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Students must agree before this date</p>
-                          </div>
-                        )}
-                      </div>
                       <div className="flex gap-2">
                         <button
                           type="submit"
@@ -520,13 +506,9 @@ export default function TeacherGradesPage() {
                               setEditingExam(null);
                               setExamForm({
                                 examType: 'MIDTERM',
-                                title: '',
-                                scheduledDate: '',
                                 duration: 60,
                                 location: '',
                                 instructions: '',
-                                isEarlyAllowed: false,
-                                earlyExamDeadline: '',
                               });
                             }}
                             className="px-4 py-2 border rounded"
@@ -541,28 +523,50 @@ export default function TeacherGradesPage() {
                   {/* Exam List */}
                   <div>
                     <h3 className="font-semibold mb-4">Scheduled Exams</h3>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {examSchedules.map(exam => (
                         <div key={exam.id} className="border rounded p-4">
                           <div className="flex justify-between items-start">
                             <div>
                               <span className={`text-xs px-2 py-1 rounded ${
                                 exam.examType === 'FINAL' ? 'bg-red-100 text-red-700' :
-                                exam.examType === 'MIDTERM' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-blue-100 text-blue-700'
+                                'bg-yellow-100 text-yellow-700'
                               }`}>
                                 {exam.examType}
                               </span>
-                              <h4 className="font-medium mt-1">{exam.title}</h4>
-                              <p className="text-sm text-gray-500">
-                                {new Date(exam.scheduledDate).toLocaleString()}
-                              </p>
-                              <p className="text-sm text-gray-500">
+
+                              {/* Show official date */}
+                              <div className="mt-2">
+                                <p className="text-sm text-gray-500">Official Date:</p>
+                                <p className="font-medium">
+                                  {exam.officialDate ? new Date(exam.officialDate).toLocaleDateString() : 'Not set'}
+                                </p>
+                              </div>
+
+                              {/* Show proposed early date if any */}
+                              {exam.earlyExamStatus !== 'NONE' && exam.proposedDate && (
+                                <div className="mt-2">
+                                  <p className="text-sm text-gray-500">Proposed Early Date:</p>
+                                  <p className="font-medium text-green-600">
+                                    {new Date(exam.proposedDate).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              )}
+
+                              <p className="text-sm text-gray-500 mt-2">
                                 Duration: {exam.duration} min | {exam.location || 'Location TBD'}
                               </p>
-                              {exam.isEarlyAllowed && (
-                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded mt-1 inline-block">
-                                  Early Exam Allowed
+
+                              {/* Early exam status */}
+                              {exam.earlyExamStatus !== 'NONE' && (
+                                <span className={`text-xs px-2 py-1 rounded mt-2 inline-block ${
+                                  exam.earlyExamStatus === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                                  exam.earlyExamStatus === 'PROPOSED' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {exam.earlyExamStatus === 'APPROVED' ? 'Early Exam Confirmed' :
+                                   exam.earlyExamStatus === 'PROPOSED' ? 'Early Exam Proposed' :
+                                   exam.earlyExamStatus}
                                 </span>
                               )}
                             </div>
@@ -582,14 +586,75 @@ export default function TeacherGradesPage() {
                             </div>
                           </div>
 
-                          {exam.isEarlyAllowed && (
+                          {/* Early Exam Proposal Section */}
+                          {exam.earlyExamStatus === 'NONE' && exam.officialDate && (
                             <div className="mt-3 pt-3 border-t">
                               <button
-                                onClick={() => loadEarlyRequests(exam.id)}
-                                className="text-sm text-blue-600 hover:underline"
+                                onClick={() => setShowEarlyProposal(showEarlyProposal === exam.id ? false : exam.id)}
+                                className="text-sm text-green-600 hover:underline"
                               >
-                                View Early Requests ({exam._count?.earlyRequests || 0} students)
+                                Propose Early Exam
                               </button>
+                              {showEarlyProposal === exam.id && (
+                                <form onSubmit={(e) => handleProposeEarlyExam(exam.id, e)} className="mt-3 space-y-3">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Proposed Early Date</label>
+                                    <input
+                                      type="date"
+                                      value={earlyProposalForm.proposedDate}
+                                      onChange={e => setEarlyProposalForm({ ...earlyProposalForm, proposedDate: e.target.value })}
+                                      className="w-full border rounded px-3 py-2"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Response Deadline</label>
+                                    <input
+                                      type="date"
+                                      value={earlyProposalForm.proposalDeadline}
+                                      onChange={e => setEarlyProposalForm({ ...earlyProposalForm, proposalDeadline: e.target.value })}
+                                      className="w-full border rounded px-3 py-2"
+                                      required
+                                    />
+                                  </div>
+                                  <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:bg-gray-400 text-sm"
+                                  >
+                                    Submit Proposal
+                                  </button>
+                                </form>
+                              )}
+                            </div>
+                          )}
+
+                          {/* View Responses for Proposed Exam */}
+                          {exam.earlyExamStatus === 'PROPOSED' && (
+                            <div className="mt-3 pt-3 border-t">
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => loadEarlyResponses(exam.id)}
+                                  className="text-sm text-blue-600 hover:underline"
+                                >
+                                  View Student Responses
+                                </button>
+                                <button
+                                  onClick={() => handleCancelEarlyProposal(exam.id)}
+                                  className="text-sm text-red-600 hover:underline"
+                                >
+                                  Cancel Proposal
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Confirmed Early Exam */}
+                          {exam.earlyExamStatus === 'APPROVED' && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-sm text-green-600 font-medium">
+                                Exam will be held on {exam.proposedDate ? new Date(exam.proposedDate).toLocaleDateString() : 'proposed date'}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -599,46 +664,65 @@ export default function TeacherGradesPage() {
                       )}
                     </div>
 
-                    {/* Early Requests Modal/Panel */}
-                    {earlyRequests && (
+                    {/* Early Responses Modal/Panel */}
+                    {earlyResponses && (
                       <div className="mt-4 border rounded p-4 bg-gray-50">
                         <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-semibold">Early Exam Requests</h4>
+                          <h4 className="font-semibold">Student Responses</h4>
                           <button
-                            onClick={() => setEarlyRequests(null)}
+                            onClick={() => setEarlyResponses(null)}
                             className="text-gray-500 hover:text-gray-700"
                           >
                             Close
                           </button>
                         </div>
-                        <div className="mb-3">
-                          <p className="text-sm">
-                            <strong>{earlyRequests.agreedCount}</strong> of <strong>{earlyRequests.totalStudents}</strong> students agreed
-                          </p>
-                          {earlyRequests.allAgreed ? (
-                            <p className="text-sm text-green-600 font-medium">All students have agreed!</p>
-                          ) : (
-                            <p className="text-sm text-yellow-600">Waiting for all students to agree</p>
-                          )}
+                        <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-green-100 rounded p-2">
+                            <div className="text-lg font-bold text-green-700">{earlyResponses.agreedCount}</div>
+                            <div className="text-xs text-green-600">Agreed</div>
+                          </div>
+                          <div className="bg-red-100 rounded p-2">
+                            <div className="text-lg font-bold text-red-700">{earlyResponses.disagreedCount}</div>
+                            <div className="text-xs text-red-600">Disagreed</div>
+                          </div>
+                          <div className="bg-gray-100 rounded p-2">
+                            <div className="text-lg font-bold text-gray-700">{earlyResponses.pendingCount}</div>
+                            <div className="text-xs text-gray-600">Pending</div>
+                          </div>
                         </div>
+                        {earlyResponses.anyDisagreed ? (
+                          <p className="text-sm text-red-600 font-medium mb-2">
+                            Some students disagreed. Exam will be held on official date.
+                          </p>
+                        ) : earlyResponses.allAgreed ? (
+                          <p className="text-sm text-green-600 font-medium mb-2">
+                            All students agreed! You can confirm the early exam.
+                          </p>
+                        ) : (
+                          <p className="text-sm text-yellow-600 mb-2">
+                            Waiting for all students to respond.
+                          </p>
+                        )}
                         <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {earlyRequests.students?.map(s => (
+                          {earlyResponses.students?.map(s => (
                             <div key={s.student.id} className="flex justify-between items-center text-sm">
                               <span>{s.student.fullName}</span>
-                              {s.hasRequested ? (
+                              {!s.hasResponded ? (
+                                <span className="text-gray-400">Pending</span>
+                              ) : s.agreed ? (
                                 <span className="text-green-600">Agreed</span>
                               ) : (
-                                <span className="text-gray-400">Pending</span>
+                                <span className="text-red-600">Disagreed</span>
                               )}
                             </div>
                           ))}
                         </div>
-                        {earlyRequests.allAgreed && (
+                        {earlyResponses.allAgreed && (
                           <button
-                            onClick={() => handleApproveEarlyExam(earlyRequests.exam.id)}
+                            onClick={() => handleConfirmEarlyExam(earlyResponses.exam.id)}
                             className="mt-3 w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                           >
-                            Approve Early Exam
+                            Confirm Early Exam
                           </button>
                         )}
                       </div>

@@ -18,7 +18,7 @@ export default function AdminAcademicPage() {
   const [yearForm, setYearForm] = useState({ name: '', startDate: '', endDate: '' });
   const [semesterForm, setSemesterForm] = useState({
     academicYearId: '', type: 'FALL', name: '', startDate: '', endDate: '',
-    registrationStart: '', registrationEnd: '', examPeriodStart: '', examPeriodEnd: '', gradingDeadline: ''
+    registrationStart: '', registrationEnd: '', midtermExamDate: '', finalExamDate: '', gradingDeadline: ''
   });
   const [editingYear, setEditingYear] = useState(null);
   const [editingSemester, setEditingSemester] = useState(null);
@@ -112,7 +112,7 @@ export default function AdminAcademicPage() {
       setEditingSemester(null);
       setSemesterForm({
         academicYearId: '', type: 'FALL', name: '', startDate: '', endDate: '',
-        registrationStart: '', registrationEnd: '', examPeriodStart: '', examPeriodEnd: '', gradingDeadline: ''
+        registrationStart: '', registrationEnd: '', midtermExamDate: '', finalExamDate: '', gradingDeadline: ''
       });
     } catch (err) {
       setError(err.message);
@@ -150,8 +150,8 @@ export default function AdminAcademicPage() {
       endDate: sem.endDate.split('T')[0],
       registrationStart: sem.registrationStart?.split('T')[0] || '',
       registrationEnd: sem.registrationEnd?.split('T')[0] || '',
-      examPeriodStart: sem.examPeriodStart?.split('T')[0] || '',
-      examPeriodEnd: sem.examPeriodEnd?.split('T')[0] || '',
+      midtermExamDate: sem.midtermExamDate?.split('T')[0] || '',
+      finalExamDate: sem.finalExamDate?.split('T')[0] || '',
       gradingDeadline: sem.gradingDeadline?.split('T')[0] || ''
     });
   }
@@ -348,32 +348,28 @@ export default function AdminAcademicPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Exam Period Start</label>
+                  <label className="block text-sm font-medium mb-1">Midterm Exam Date</label>
                   <input
                     type="date"
-                    value={semesterForm.examPeriodStart}
-                    onChange={e => setSemesterForm({ ...semesterForm, examPeriodStart: e.target.value })}
+                    value={semesterForm.midtermExamDate}
+                    onChange={e => setSemesterForm({ ...semesterForm, midtermExamDate: e.target.value })}
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Exam Period End</label>
+                  <label className="block text-sm font-medium mb-1">Final Exam Date</label>
                   <input
                     type="date"
-                    value={semesterForm.examPeriodEnd}
-                    onChange={e => setSemesterForm({ ...semesterForm, examPeriodEnd: e.target.value })}
+                    value={semesterForm.finalExamDate}
+                    onChange={e => setSemesterForm({ ...semesterForm, finalExamDate: e.target.value })}
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
               </div>
               <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
-                <div className="font-medium text-yellow-800 mb-1">Exam Period includes:</div>
-                <div className="flex gap-3 text-yellow-700">
-                  <span>Midterm Exam</span>
-                  <span>Final Exam</span>
-                </div>
+                <div className="font-medium text-yellow-800 mb-1">Official Exam Dates</div>
                 <p className="text-xs text-yellow-600 mt-1">
-                  Teachers will schedule their Midterm and Final exams within this period. Students will be notified.
+                  These are the official Midterm and Final exam dates for all courses. Teachers can propose early exams if all students agree.
                 </p>
               </div>
               <div>
@@ -390,7 +386,7 @@ export default function AdminAcademicPage() {
                   {editingSemester ? 'Update' : 'Create'}
                 </button>
                 {editingSemester && (
-                  <button type="button" onClick={() => { setEditingSemester(null); setSemesterForm({ academicYearId: '', type: 'FALL', name: '', startDate: '', endDate: '', registrationStart: '', registrationEnd: '', examPeriodStart: '', examPeriodEnd: '', gradingDeadline: '' }); }} className="px-4 py-2 border rounded">
+                  <button type="button" onClick={() => { setEditingSemester(null); setSemesterForm({ academicYearId: '', type: 'FALL', name: '', startDate: '', endDate: '', registrationStart: '', registrationEnd: '', midtermExamDate: '', finalExamDate: '', gradingDeadline: '' }); }} className="px-4 py-2 border rounded">
                     Cancel
                   </button>
                 )}
@@ -427,36 +423,28 @@ export default function AdminAcademicPage() {
                               : 'Not set'}
                           </div>
                         </div>
-                        <div className="bg-red-50 rounded p-2">
-                          <div className="text-xs text-red-600 font-medium">Exam Period</div>
+                        <div className="bg-yellow-50 rounded p-2">
+                          <div className="text-xs text-yellow-600 font-medium">Midterm Exam</div>
                           <div className="text-gray-700">
-                            {sem.examPeriodStart && sem.examPeriodEnd
-                              ? `${new Date(sem.examPeriodStart).toLocaleDateString()} - ${new Date(sem.examPeriodEnd).toLocaleDateString()}`
+                            {sem.midtermExamDate
+                              ? new Date(sem.midtermExamDate).toLocaleDateString()
                               : 'Not set'}
                           </div>
                         </div>
-                        <div className="bg-purple-50 rounded p-2">
-                          <div className="text-xs text-purple-600 font-medium">Grading Deadline</div>
+                        <div className="bg-red-50 rounded p-2">
+                          <div className="text-xs text-red-600 font-medium">Final Exam</div>
                           <div className="text-gray-700">
-                            {sem.gradingDeadline
-                              ? new Date(sem.gradingDeadline).toLocaleDateString()
+                            {sem.finalExamDate
+                              ? new Date(sem.finalExamDate).toLocaleDateString()
                               : 'Not set'}
                           </div>
                         </div>
                       </div>
 
-                      {/* Exam Types Reminder */}
-                      {sem.examPeriodStart && sem.examPeriodEnd && (
-                        <div className="mt-3 flex gap-2">
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
-                            Midterm Exam
-                          </span>
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-                            Final Exam
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Teachers will schedule these within the exam period
-                          </span>
+                      {/* Grading Deadline */}
+                      {sem.gradingDeadline && (
+                        <div className="mt-2 text-sm text-purple-600">
+                          Grading Deadline: {new Date(sem.gradingDeadline).toLocaleDateString()}
                         </div>
                       )}
 

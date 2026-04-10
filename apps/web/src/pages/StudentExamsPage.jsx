@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getStudentExamSchedules, requestEarlyExam, cancelEarlyExamRequest } from '../api.js';
+import { getStudentExamSchedules, respondToEarlyExamProposal } from '../api.js';
 
 export default function StudentExamsPage() {
   const [examSchedules, setExamSchedules] = useState([]);
@@ -22,20 +22,10 @@ export default function StudentExamsPage() {
     }
   }
 
-  async function handleAgreeEarlyExam(examId) {
+  async function handleRespond(examId, agreed) {
     try {
-      await requestEarlyExam(examId);
-      setSuccess('You have agreed to take the exam early!');
-      loadExamSchedules();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleCancelEarlyExam(examId) {
-    try {
-      await cancelEarlyExamRequest(examId);
-      setSuccess('Early exam request cancelled.');
+      await respondToEarlyExamProposal(examId, agreed);
+      setSuccess(agreed ? 'You agreed to take the exam early!' : 'You chose to keep the official exam date.');
       loadExamSchedules();
     } catch (err) {
       setError(err.message);
@@ -74,40 +64,47 @@ export default function StudentExamsPage() {
             <div className="bg-gray-100 rounded-lg p-4 mb-4">
               <h2 className="text-lg font-semibold">{semester?.name || 'Unknown Semester'}</h2>
               <p className="text-sm text-gray-500">{semester?.academicYear?.name}</p>
-              {semester?.examPeriodStart && semester?.examPeriodEnd && (
-                <p className="text-sm text-red-600 mt-1">
-                  Exam Period: {new Date(semester.examPeriodStart).toLocaleDateString()} - {new Date(semester.examPeriodEnd).toLocaleDateString()}
-                </p>
-              )}
+              <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-yellow-50 rounded p-2">
+                  <span className="text-yellow-600 font-medium">Midterm:</span>{' '}
+                  <span>{semester?.midtermExamDate ? new Date(semester.midtermExamDate).toLocaleDateString() : 'Not set'}</span>
+                </div>
+                <div className="bg-red-50 rounded p-2">
+                  <span className="text-red-600 font-medium">Final:</span>{' '}
+                  <span>{semester?.finalExamDate ? new Date(semester.finalExamDate).toLocaleDateString() : 'Not set'}</span>
+                </div>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               {exams.map(exam => (
                 <div key={exam.id} className="bg-white rounded-lg shadow border overflow-hidden">
                   <div className={`p-3 ${
-                    exam.examType === 'FINAL' ? 'bg-red-600' :
-                    exam.examType === 'MIDTERM' ? 'bg-yellow-600' :
-                    'bg-blue-600'
+                    exam.examType === 'FINAL' ? 'bg-red-600' : 'bg-yellow-600'
                   } text-white`}>
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold">{exam.examType}</span>
+                      <span className="font-semibold">{exam.examType} EXAM</span>
                       <span className="text-sm opacity-90">{exam.courseSection?.course?.code}</span>
                     </div>
                   </div>
 
                   <div className="p-4">
-                    <h3 className="font-medium text-lg">{exam.title}</h3>
-                    <p className="text-sm text-gray-500">{exam.courseSection?.course?.title}</p>
+                    <h3 className="font-medium text-lg">{exam.courseSection?.course?.title}</h3>
 
                     <div className="mt-3 space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">Date:</span>
-                        <span className="font-medium">{new Date(exam.scheduledDate).toLocaleDateString()}</span>
+                      {/* Show actual exam date */}
+                      <div className="bg-blue-50 rounded p-2">
+                        <span className="text-blue-600 font-medium">Exam Date: </span>
+                        <span className="font-bold">
+                          {exam.actualDate ? new Date(exam.actualDate).toLocaleDateString() : 'Not set'}
+                        </span>
+                        {exam.earlyExamStatus === 'APPROVED' && (
+                          <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                            Early Exam
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">Time:</span>
-                        <span className="font-medium">{new Date(exam.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
+
                       <div className="flex items-center gap-2">
                         <span className="text-gray-500">Duration:</span>
                         <span className="font-medium">{exam.duration} minutes</span>
@@ -127,44 +124,58 @@ export default function StudentExamsPage() {
                       </div>
                     )}
 
-                    {/* Early Exam Section */}
-                    {exam.isEarlyAllowed && (
-                      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
-                        <div className="font-medium text-green-800 mb-2">Early Exam Available</div>
-                        {exam.earlyExamDeadline && (
-                          <p className="text-xs text-green-600 mb-2">
-                            Request deadline: {new Date(exam.earlyExamDeadline).toLocaleDateString()}
+                    {/* Early Exam Proposal Section */}
+                    {exam.earlyExamStatus === 'PROPOSED' && (
+                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <div className="font-medium text-yellow-800 mb-2">
+                          Teacher Proposed Early Exam
+                        </div>
+                        <div className="text-sm text-yellow-700 mb-2">
+                          <p><strong>Proposed Date:</strong> {exam.proposedDate ? new Date(exam.proposedDate).toLocaleDateString() : 'N/A'}</p>
+                          <p><strong>Official Date:</strong> {exam.officialDate ? new Date(exam.officialDate).toLocaleDateString() : 'N/A'}</p>
+                        </div>
+                        {exam.proposalDeadline && (
+                          <p className="text-xs text-yellow-600 mb-3">
+                            Respond by: {new Date(exam.proposalDeadline).toLocaleDateString()}
                           </p>
                         )}
 
-                        {exam.myEarlyRequest ? (
-                          <div className="flex items-center justify-between">
-                            <span className={`text-sm px-2 py-1 rounded ${
-                              exam.myEarlyRequest.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                              exam.myEarlyRequest.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                              'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {exam.myEarlyRequest.status === 'APPROVED' ? 'Early Exam Approved!' :
-                               exam.myEarlyRequest.status === 'REJECTED' ? 'Request Rejected' :
-                               'Request Pending'}
-                            </span>
-                            {exam.myEarlyRequest.status === 'PENDING' && (
-                              <button
-                                onClick={() => handleCancelEarlyExam(exam.id)}
-                                className="text-red-600 hover:underline text-sm"
-                              >
-                                Cancel Request
-                              </button>
-                            )}
+                        {exam.myResponse ? (
+                          <div className={`text-sm px-3 py-2 rounded ${
+                            exam.myResponse.agreed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {exam.myResponse.agreed
+                              ? 'You agreed to take the exam early'
+                              : 'You chose to keep the official date'}
                           </div>
                         ) : (
-                          <button
-                            onClick={() => handleAgreeEarlyExam(exam.id)}
-                            className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
-                          >
-                            Agree to Take Exam Early
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleRespond(exam.id, true)}
+                              className="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+                            >
+                              Agree to Early Date
+                            </button>
+                            <button
+                              onClick={() => handleRespond(exam.id, false)}
+                              className="flex-1 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 text-sm"
+                            >
+                              Keep Official Date
+                            </button>
+                          </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Confirmed Early Exam */}
+                    {exam.earlyExamStatus === 'APPROVED' && (
+                      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                        <div className="font-medium text-green-800">
+                          Early Exam Confirmed!
+                        </div>
+                        <p className="text-sm text-green-700">
+                          All students agreed. Exam will be held on {exam.proposedDate ? new Date(exam.proposedDate).toLocaleDateString() : 'the proposed date'}.
+                        </p>
                       </div>
                     )}
                   </div>

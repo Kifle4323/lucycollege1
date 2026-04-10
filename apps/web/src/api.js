@@ -484,12 +484,20 @@ export async function deleteExamSchedule(id) {
   return apiFetch(`/teacher/exam-schedules/${id}`, { method: 'DELETE' });
 }
 
-export async function getEarlyExamRequests(examScheduleId) {
-  return apiFetch(`/teacher/exam-schedules/${examScheduleId}/early-requests`);
+export async function proposeEarlyExam(id, data) {
+  return apiFetch(`/teacher/exam-schedules/${id}/propose-early`, { method: 'POST', body: JSON.stringify(data) });
 }
 
-export async function approveEarlyExam(examScheduleId) {
-  return apiFetch(`/teacher/exam-schedules/${examScheduleId}/approve-early`, { method: 'POST' });
+export async function cancelEarlyExamProposal(id) {
+  return apiFetch(`/teacher/exam-schedules/${id}/propose-early`, { method: 'DELETE' });
+}
+
+export async function getEarlyExamResponses(examScheduleId) {
+  return apiFetch(`/teacher/exam-schedules/${examScheduleId}/early-responses`);
+}
+
+export async function confirmEarlyExam(examScheduleId) {
+  return apiFetch(`/teacher/exam-schedules/${examScheduleId}/confirm-early`, { method: 'POST' });
 }
 
 // Student - Exam Schedules
@@ -497,10 +505,6 @@ export async function getStudentExamSchedules() {
   return apiFetch('/student/exam-schedules');
 }
 
-export async function requestEarlyExam(examScheduleId) {
-  return apiFetch(`/student/exam-schedules/${examScheduleId}/early-request`, { method: 'POST' });
-}
-
-export async function cancelEarlyExamRequest(examScheduleId) {
-  return apiFetch(`/student/exam-schedules/${examScheduleId}/early-request`, { method: 'DELETE' });
+export async function respondToEarlyExamProposal(examScheduleId, agreed) {
+  return apiFetch(`/student/exam-schedules/${examScheduleId}/respond`, { method: 'POST', body: JSON.stringify({ agreed }) });
 }
