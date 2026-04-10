@@ -196,9 +196,10 @@ export default function AdminAcademicPage() {
   async function handleCreateCourseSection(e) {
     e.preventDefault();
     try {
-      // Prepare data - convert empty classId to null
+      // Prepare data - use selectedSemester and convert empty classId to null
       const data = {
         ...courseSectionForm,
+        semesterId: selectedSemester,
         classId: courseSectionForm.classId || null
       };
       const newSection = await createCourseSection(data);
