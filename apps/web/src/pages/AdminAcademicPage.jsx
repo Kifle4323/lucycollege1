@@ -150,6 +150,22 @@ export default function AdminAcademicPage() {
     }
   }
 
+  async function handleChangeSemesterStatus(semesterId, newStatus) {
+    const statusLabels = {
+      'REGISTRATION_OPEN': 'open registration',
+      'IN_PROGRESS': 'start the semester',
+      'GRADING': 'start grading period',
+      'COMPLETED': 'complete the semester'
+    };
+    if (!confirm(`Are you sure you want to ${statusLabels[newStatus]}?`)) return;
+    try {
+      await updateSemester(semesterId, { status: newStatus });
+      loadData();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   function startEditSemester(sem) {
     setEditingSemester(sem);
     setSemesterForm({
@@ -531,20 +547,48 @@ export default function AdminAcademicPage() {
                         </span>
                         {sem.isCurrent && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Current</span>}
                       </div>
+
+                      {/* Status Change Buttons */}
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        {sem.status === 'UPCOMING' && (
+                          <button
+                            onClick={() => handleChangeSemesterStatus(sem.id, 'REGISTRATION_OPEN')}
+                            className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                          >
+                            Open Registration
+                          </button>
+                        )}
+                        {sem.status === 'REGISTRATION_OPEN' && (
+                          <button
+                            onClick={() => handleChangeSemesterStatus(sem.id, 'IN_PROGRESS')}
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                          >
+                            Start Semester
+                          </button>
+                        )}
+                        {sem.status === 'IN_PROGRESS' && (
+                          <button
+                            onClick={() => handleChangeSemesterStatus(sem.id, 'GRADING')}
+                            className="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700"
+                          >
+                            Start Grading
+                          </button>
+                        )}
+                        {sem.status === 'GRADING' && (
+                          <button
+                            onClick={() => handlePublishGrades(sem.id)}
+                            className="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700"
+                          >
+                            Publish & Complete
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => startEditSemester(sem)} className="text-blue-600 hover:underline text-sm">Edit</button>
                       <button onClick={() => handleDeleteSemester(sem.id)} className="text-red-600 hover:underline text-sm">Delete</button>
                     </div>
                   </div>
-                  {sem.status === 'GRADING' && (
-                    <button
-                      onClick={() => handlePublishGrades(sem.id)}
-                      className="mt-3 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                    >
-                      Publish Grades
-                    </button>
-                  )}
                 </div>
               ))}
               {semesters.length === 0 && <p className="text-gray-500">No semesters yet.</p>}
