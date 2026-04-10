@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "prisma generate --schema=apps/api/prisma/schema.prisma",
+  "buildCommand": "cd apps/api && npx prisma generate",
   "installCommand": "npm install",
   "framework": null,
   "regions": ["iad1"],
