@@ -1,5 +1,9 @@
-import { verifyAccessToken } from './auth.js';
-export function authRequired(req, res, next) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.authRequired = authRequired;
+exports.requireRole = requireRole;
+const auth_js_1 = require("./auth.js");
+function authRequired(req, res, next) {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
         res.status(401).json({ error: 'missing_token' });
@@ -7,7 +11,7 @@ export function authRequired(req, res, next) {
     }
     const token = header.slice('Bearer '.length);
     try {
-        const payload = verifyAccessToken(token);
+        const payload = (0, auth_js_1.verifyAccessToken)(token);
         req.user = { id: payload.sub, role: payload.role };
         next();
     }
@@ -15,7 +19,7 @@ export function authRequired(req, res, next) {
         res.status(401).json({ error: 'invalid_token' });
     }
 }
-export function requireRole(roles) {
+function requireRole(roles) {
     return (req, res, next) => {
         if (!req.user) {
             res.status(401).json({ error: 'missing_token' });

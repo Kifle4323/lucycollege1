@@ -1,17 +1,20 @@
-import { z } from 'zod';
-import { prisma } from '../db.js';
-import { authRequired, requireRole } from '../middleware.js';
-export function registerStudentProfileRoutes(router) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.registerStudentProfileRoutes = registerStudentProfileRoutes;
+const zod_1 = require("zod");
+const db_js_1 = require("../db.js");
+const middleware_js_1 = require("../middleware.js");
+function registerStudentProfileRoutes(router) {
     // === STUDENT ROUTES ===
     // Get own profile
-    router.get('/student/profile', authRequired, requireRole(['STUDENT']), async (req, res) => {
-        const profile = await prisma.studentProfile.findUnique({
+    router.get('/student/profile', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['STUDENT']), async (req, res) => {
+        const profile = await db_js_1.prisma.studentProfile.findUnique({
             where: { userId: req.user.id },
             include: { documents: true },
         });
         if (!profile) {
             // Create empty profile if doesn't exist
-            const newProfile = await prisma.studentProfile.create({
+            const newProfile = await db_js_1.prisma.studentProfile.create({
                 data: { userId: req.user.id },
                 include: { documents: true },
             });
@@ -21,65 +24,65 @@ export function registerStudentProfileRoutes(router) {
         res.json(profile);
     });
     // Save profile (draft or submit for approval)
-    router.patch('/student/profile', authRequired, requireRole(['STUDENT']), async (req, res) => {
-        const body = z.object({
+    router.patch('/student/profile', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['STUDENT']), async (req, res) => {
+        const body = zod_1.z.object({
             // Basic Information
-            firstName: z.string().optional(),
-            fatherName: z.string().optional(),
-            grandFatherName: z.string().optional(),
-            firstNameLocal: z.string().optional(),
-            fatherNameLocal: z.string().optional(),
-            grandFatherNameLocal: z.string().optional(),
-            dateOfBirthGC: z.string().optional(),
-            gender: z.string().optional(),
-            placeOfBirth: z.string().optional(),
-            motherTongue: z.string().optional(),
-            healthStatus: z.string().optional(),
-            maritalStatus: z.string().optional(),
-            nationalIdFan: z.string().optional(),
+            firstName: zod_1.z.string().optional(),
+            fatherName: zod_1.z.string().optional(),
+            grandFatherName: zod_1.z.string().optional(),
+            firstNameLocal: zod_1.z.string().optional(),
+            fatherNameLocal: zod_1.z.string().optional(),
+            grandFatherNameLocal: zod_1.z.string().optional(),
+            dateOfBirthGC: zod_1.z.string().optional(),
+            gender: zod_1.z.string().optional(),
+            placeOfBirth: zod_1.z.string().optional(),
+            motherTongue: zod_1.z.string().optional(),
+            healthStatus: zod_1.z.string().optional(),
+            maritalStatus: zod_1.z.string().optional(),
+            nationalIdFan: zod_1.z.string().optional(),
             // Location and Address
-            citizenship: z.string().optional(),
-            country: z.string().optional(),
-            city: z.string().optional(),
-            subCity: z.string().optional(),
-            kebele: z.string().optional(),
-            woreda: z.string().optional(),
-            houseNumber: z.string().optional(),
-            phone: z.string().optional(),
-            email: z.string().optional(),
-            pobox: z.string().optional(),
+            citizenship: zod_1.z.string().optional(),
+            country: zod_1.z.string().optional(),
+            city: zod_1.z.string().optional(),
+            subCity: zod_1.z.string().optional(),
+            kebele: zod_1.z.string().optional(),
+            woreda: zod_1.z.string().optional(),
+            houseNumber: zod_1.z.string().optional(),
+            phone: zod_1.z.string().optional(),
+            email: zod_1.z.string().optional(),
+            pobox: zod_1.z.string().optional(),
             // Others
-            economicalStatus: z.string().optional(),
-            areaType: z.string().optional(),
-            tinNumber: z.string().optional(),
-            accountNumber: z.string().optional(),
+            economicalStatus: zod_1.z.string().optional(),
+            areaType: zod_1.z.string().optional(),
+            tinNumber: zod_1.z.string().optional(),
+            accountNumber: zod_1.z.string().optional(),
             // Educational - Campus Related
-            stream: z.string().optional(),
-            entryYear: z.number().optional(),
-            sponsorCategory: z.string().optional(),
-            sponsoredBy: z.string().optional(),
-            nationalExamYearEC: z.number().optional(),
-            examinationId: z.string().optional(),
-            admissionDate: z.string().optional(),
-            checkedInDate: z.string().optional(),
-            nationalExamResultTotal: z.number().optional(),
+            stream: zod_1.z.string().optional(),
+            entryYear: zod_1.z.number().optional(),
+            sponsorCategory: zod_1.z.string().optional(),
+            sponsoredBy: zod_1.z.string().optional(),
+            nationalExamYearEC: zod_1.z.number().optional(),
+            examinationId: zod_1.z.string().optional(),
+            admissionDate: zod_1.z.string().optional(),
+            checkedInDate: zod_1.z.string().optional(),
+            nationalExamResultTotal: zod_1.z.number().optional(),
             // National Exam Results
-            examEnglish: z.number().optional(),
-            examPhysics: z.number().optional(),
-            examCivics: z.number().optional(),
-            examNaturalMath: z.number().optional(),
-            examChemistry: z.number().optional(),
-            examBiology: z.number().optional(),
-            examAptitude: z.number().optional(),
+            examEnglish: zod_1.z.number().optional(),
+            examPhysics: zod_1.z.number().optional(),
+            examCivics: zod_1.z.number().optional(),
+            examNaturalMath: zod_1.z.number().optional(),
+            examChemistry: zod_1.z.number().optional(),
+            examBiology: zod_1.z.number().optional(),
+            examAptitude: zod_1.z.number().optional(),
             // Submit action
-            submitForApproval: z.boolean().optional(),
+            submitForApproval: zod_1.z.boolean().optional(),
         }).parse(req.body);
         // Check if profile exists
-        let profile = await prisma.studentProfile.findUnique({
+        let profile = await db_js_1.prisma.studentProfile.findUnique({
             where: { userId: req.user.id },
         });
         if (!profile) {
-            profile = await prisma.studentProfile.create({
+            profile = await db_js_1.prisma.studentProfile.create({
                 data: { userId: req.user.id },
             });
         }
@@ -93,7 +96,7 @@ export function registerStudentProfileRoutes(router) {
         if (body.submitForApproval) {
             updateData.status = 'PENDING_APPROVAL';
         }
-        const updatedProfile = await prisma.studentProfile.update({
+        const updatedProfile = await db_js_1.prisma.studentProfile.update({
             where: { userId: req.user.id },
             data: updateData,
             include: { documents: true },
@@ -101,28 +104,28 @@ export function registerStudentProfileRoutes(router) {
         res.json(updatedProfile);
     });
     // Upload document
-    router.post('/student/profile/documents', authRequired, requireRole(['STUDENT']), async (req, res) => {
-        const body = z.object({
-            documentType: z.string(),
-            fileName: z.string().optional(),
-            fileUrl: z.string(), // Base64 encoded file
+    router.post('/student/profile/documents', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['STUDENT']), async (req, res) => {
+        const body = zod_1.z.object({
+            documentType: zod_1.z.string(),
+            fileName: zod_1.z.string().optional(),
+            fileUrl: zod_1.z.string(), // Base64 encoded file
         }).parse(req.body);
         // Ensure profile exists
-        let profile = await prisma.studentProfile.findUnique({
+        let profile = await db_js_1.prisma.studentProfile.findUnique({
             where: { userId: req.user.id },
         });
         if (!profile) {
-            profile = await prisma.studentProfile.create({
+            profile = await db_js_1.prisma.studentProfile.create({
                 data: { userId: req.user.id },
             });
         }
         // Check if document type already exists
-        const existing = await prisma.studentDocument.findFirst({
+        const existing = await db_js_1.prisma.studentDocument.findFirst({
             where: { studentProfileId: profile.id, documentType: body.documentType },
         });
         if (existing) {
             // Update existing document
-            const updated = await prisma.studentDocument.update({
+            const updated = await db_js_1.prisma.studentDocument.update({
                 where: { id: existing.id },
                 data: {
                     fileName: body.fileName,
@@ -135,7 +138,7 @@ export function registerStudentProfileRoutes(router) {
             return;
         }
         // Create new document
-        const document = await prisma.studentDocument.create({
+        const document = await db_js_1.prisma.studentDocument.create({
             data: {
                 studentProfileId: profile.id,
                 documentType: body.documentType,
@@ -148,9 +151,9 @@ export function registerStudentProfileRoutes(router) {
         res.json(document);
     });
     // Delete document
-    router.delete('/student/profile/documents/:documentId', authRequired, requireRole(['STUDENT']), async (req, res) => {
-        const params = z.object({ documentId: z.string() }).parse(req.params);
-        const document = await prisma.studentDocument.findUnique({
+    router.delete('/student/profile/documents/:documentId', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['STUDENT']), async (req, res) => {
+        const params = zod_1.z.object({ documentId: zod_1.z.string() }).parse(req.params);
+        const document = await db_js_1.prisma.studentDocument.findUnique({
             where: { id: params.documentId },
             include: { studentProfile: true },
         });
@@ -158,15 +161,15 @@ export function registerStudentProfileRoutes(router) {
             res.status(404).json({ error: 'Document not found' });
             return;
         }
-        await prisma.studentDocument.delete({
+        await db_js_1.prisma.studentDocument.delete({
             where: { id: params.documentId },
         });
         res.json({ success: true });
     });
     // === ADMIN ROUTES ===
     // Get all pending profiles
-    router.get('/admin/student-profiles/pending', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const profiles = await prisma.studentProfile.findMany({
+    router.get('/admin/student-profiles/pending', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const profiles = await db_js_1.prisma.studentProfile.findMany({
             where: { status: 'PENDING_APPROVAL' },
             include: {
                 user: { select: { id: true, email: true, fullName: true } },
@@ -177,15 +180,15 @@ export function registerStudentProfileRoutes(router) {
         res.json(profiles);
     });
     // Get all profiles (with filter)
-    router.get('/admin/student-profiles', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const query = z.object({
-            status: z.enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED']).optional(),
+    router.get('/admin/student-profiles', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const query = zod_1.z.object({
+            status: zod_1.z.enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED']).optional(),
         }).parse(req.query);
         const where = {};
         if (query.status) {
             where.status = query.status;
         }
-        const profiles = await prisma.studentProfile.findMany({
+        const profiles = await db_js_1.prisma.studentProfile.findMany({
             where,
             include: {
                 user: { select: { id: true, email: true, fullName: true, profileImage: true } },
@@ -196,9 +199,9 @@ export function registerStudentProfileRoutes(router) {
         res.json(profiles);
     });
     // Get single profile
-    router.get('/admin/student-profiles/:profileId', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const params = z.object({ profileId: z.string() }).parse(req.params);
-        const profile = await prisma.studentProfile.findUnique({
+    router.get('/admin/student-profiles/:profileId', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const params = zod_1.z.object({ profileId: zod_1.z.string() }).parse(req.params);
+        const profile = await db_js_1.prisma.studentProfile.findUnique({
             where: { id: params.profileId },
             include: {
                 user: { select: { id: true, email: true, fullName: true, profileImage: true, createdAt: true } },
@@ -212,9 +215,9 @@ export function registerStudentProfileRoutes(router) {
         res.json(profile);
     });
     // Approve profile
-    router.post('/admin/student-profiles/:profileId/approve', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const params = z.object({ profileId: z.string() }).parse(req.params);
-        const profile = await prisma.studentProfile.update({
+    router.post('/admin/student-profiles/:profileId/approve', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const params = zod_1.z.object({ profileId: zod_1.z.string() }).parse(req.params);
+        const profile = await db_js_1.prisma.studentProfile.update({
             where: { id: params.profileId },
             data: {
                 status: 'APPROVED',
@@ -230,10 +233,10 @@ export function registerStudentProfileRoutes(router) {
         res.json(profile);
     });
     // Reject profile
-    router.post('/admin/student-profiles/:profileId/reject', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const params = z.object({ profileId: z.string() }).parse(req.params);
-        const body = z.object({ reason: z.string().min(1) }).parse(req.body);
-        const profile = await prisma.studentProfile.update({
+    router.post('/admin/student-profiles/:profileId/reject', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const params = zod_1.z.object({ profileId: zod_1.z.string() }).parse(req.params);
+        const body = zod_1.z.object({ reason: zod_1.z.string().min(1) }).parse(req.body);
+        const profile = await db_js_1.prisma.studentProfile.update({
             where: { id: params.profileId },
             data: {
                 status: 'REJECTED',

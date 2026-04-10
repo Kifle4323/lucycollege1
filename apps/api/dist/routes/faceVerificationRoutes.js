@@ -1,14 +1,17 @@
-import { z } from 'zod';
-import { prisma } from '../db.js';
-import { authRequired, requireRole } from '../middleware.js';
-export function registerFaceVerificationRoutes(router) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.registerFaceVerificationRoutes = registerFaceVerificationRoutes;
+const zod_1 = require("zod");
+const db_js_1 = require("../db.js");
+const middleware_js_1 = require("../middleware.js");
+function registerFaceVerificationRoutes(router) {
     // All users: Update profile with image
-    router.patch('/users/me/profile', authRequired, async (req, res) => {
-        const body = z.object({
-            fullName: z.string().min(2).optional(),
-            profileImage: z.string().optional(), // Base64 encoded image
+    router.patch('/users/me/profile', middleware_js_1.authRequired, async (req, res) => {
+        const body = zod_1.z.object({
+            fullName: zod_1.z.string().min(2).optional(),
+            profileImage: zod_1.z.string().optional(), // Base64 encoded image
         }).parse(req.body);
-        const user = await prisma.user.update({
+        const user = await db_js_1.prisma.user.update({
             where: { id: req.user.id },
             data: {
                 fullName: body.fullName,
@@ -27,8 +30,8 @@ export function registerFaceVerificationRoutes(router) {
         res.json(user);
     });
     // Student: Get own profile status
-    router.get('/users/me/profile-status', authRequired, async (req, res) => {
-        const user = await prisma.user.findUnique({
+    router.get('/users/me/profile-status', middleware_js_1.authRequired, async (req, res) => {
+        const user = await db_js_1.prisma.user.findUnique({
             where: { id: req.user.id },
             select: {
                 id: true,
@@ -40,8 +43,8 @@ export function registerFaceVerificationRoutes(router) {
         res.json(user);
     });
     // Admin: Get all students with profile status
-    router.get('/admin/students-profiles', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const students = await prisma.user.findMany({
+    router.get('/admin/students-profiles', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const students = await db_js_1.prisma.user.findMany({
             where: { role: 'STUDENT' },
             select: {
                 id: true,
@@ -61,8 +64,8 @@ export function registerFaceVerificationRoutes(router) {
         res.json(students);
     });
     // Admin: Get pending face verifications
-    router.get('/admin/face-verifications/pending', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const verifications = await prisma.faceVerification.findMany({
+    router.get('/admin/face-verifications/pending', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const verifications = await db_js_1.prisma.faceVerification.findMany({
             where: {
                 matchResult: false,
                 adminReviewed: false,
@@ -84,9 +87,9 @@ export function registerFaceVerificationRoutes(router) {
         res.json(verifications);
     });
     // Admin: Get all face verifications (with filters)
-    router.get('/admin/face-verifications', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const query = z.object({
-            status: z.enum(['pending', 'approved', 'rejected', 'matched']).optional(),
+    router.get('/admin/face-verifications', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const query = zod_1.z.object({
+            status: zod_1.z.enum(['pending', 'approved', 'rejected', 'matched']).optional(),
         }).parse(req.query);
         const where = {};
         if (query.status === 'pending') {
@@ -106,7 +109,7 @@ export function registerFaceVerificationRoutes(router) {
         else if (query.status === 'matched') {
             where.matchResult = true;
         }
-        const verifications = await prisma.faceVerification.findMany({
+        const verifications = await db_js_1.prisma.faceVerification.findMany({
             where,
             include: {
                 student: {
@@ -125,12 +128,12 @@ export function registerFaceVerificationRoutes(router) {
         res.json(verifications);
     });
     // Admin: Approve or reject face verification
-    router.post('/admin/face-verifications/:id/review', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const params = z.object({ id: z.string() }).parse(req.params);
-        const body = z.object({
-            approved: z.boolean(),
+    router.post('/admin/face-verifications/:id/review', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const params = zod_1.z.object({ id: zod_1.z.string() }).parse(req.params);
+        const body = zod_1.z.object({
+            approved: zod_1.z.boolean(),
         }).parse(req.body);
-        const verification = await prisma.faceVerification.findUnique({
+        const verification = await db_js_1.prisma.faceVerification.findUnique({
             where: { id: params.id },
             include: { attempt: true },
         });
@@ -139,8 +142,8 @@ export function registerFaceVerificationRoutes(router) {
             return;
         }
         // Update verification and attempt
-        const [updated] = await prisma.$transaction([
-            prisma.faceVerification.update({
+        const [updated] = await db_js_1.prisma.$transaction([
+            db_js_1.prisma.faceVerification.update({
                 where: { id: params.id },
                 data: {
                     adminReviewed: true,
@@ -153,7 +156,7 @@ export function registerFaceVerificationRoutes(router) {
                     attempt: { include: { assessment: { select: { title: true } } } },
                 },
             }),
-            prisma.attempt.update({
+            db_js_1.prisma.attempt.update({
                 where: { id: verification.attemptId },
                 data: {
                     faceVerified: body.approved,
@@ -164,9 +167,9 @@ export function registerFaceVerificationRoutes(router) {
         res.json(updated);
     });
     // Teacher: Get attempts with face verification status for grading
-    router.get('/assessments/:assessmentId/attempts-for-grading', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ assessmentId: z.string() }).parse(req.params);
-        const assessment = await prisma.assessment.findUnique({
+    router.get('/assessments/:assessmentId/attempts-for-grading', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ assessmentId: zod_1.z.string() }).parse(req.params);
+        const assessment = await db_js_1.prisma.assessment.findUnique({
             where: { id: params.assessmentId },
             include: { course: { include: { courseClasses: true } } },
         });
@@ -180,7 +183,7 @@ export function registerFaceVerificationRoutes(router) {
             res.status(403).json({ error: 'forbidden' });
             return;
         }
-        const attempts = await prisma.attempt.findMany({
+        const attempts = await db_js_1.prisma.attempt.findMany({
             where: { assessmentId: params.assessmentId, status: 'SUBMITTED' },
             include: {
                 student: { select: { id: true, fullName: true, email: true, profileImage: true } },
@@ -194,14 +197,14 @@ export function registerFaceVerificationRoutes(router) {
         res.json(attempts);
     });
     // Internal: Create or update face verification record
-    router.post('/face-verifications', authRequired, async (req, res) => {
-        const body = z.object({
-            attemptId: z.string(),
-            capturedImage: z.string(),
-            matchResult: z.boolean(),
+    router.post('/face-verifications', middleware_js_1.authRequired, async (req, res) => {
+        const body = zod_1.z.object({
+            attemptId: zod_1.z.string(),
+            capturedImage: zod_1.z.string(),
+            matchResult: zod_1.z.boolean(),
         }).parse(req.body);
         // Verify the attempt belongs to this student
-        const attempt = await prisma.attempt.findFirst({
+        const attempt = await db_js_1.prisma.attempt.findFirst({
             where: { id: body.attemptId, studentId: req.user.id },
         });
         if (!attempt) {
@@ -209,12 +212,12 @@ export function registerFaceVerificationRoutes(router) {
             return;
         }
         // Get student's profile image for reference
-        const student = await prisma.user.findUnique({
+        const student = await db_js_1.prisma.user.findUnique({
             where: { id: req.user.id },
             select: { profileImage: true },
         });
         // Use upsert to create or update the verification record
-        const verification = await prisma.faceVerification.upsert({
+        const verification = await db_js_1.prisma.faceVerification.upsert({
             where: { attemptId: body.attemptId },
             create: {
                 attemptId: body.attemptId,

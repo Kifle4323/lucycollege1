@@ -1,20 +1,23 @@
-import { z } from 'zod';
-import { prisma } from '../db.js';
-import { authRequired, requireRole } from '../middleware.js';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.registerLiveSessionRoutes = registerLiveSessionRoutes;
+const zod_1 = require("zod");
+const db_js_1 = require("../db.js");
+const middleware_js_1 = require("../middleware.js");
 // Generate a unique Jitsi meeting room name
 function generateMeetingRoom(title) {
     const randomId = Math.random().toString(36).substring(2, 8);
     const sanitized = title.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 20);
     return `edulms-${sanitized}-${randomId}`;
 }
-export function registerLiveSessionRoutes(router) {
+function registerLiveSessionRoutes(router) {
     // Get live sessions for a course
-    router.get('/courses/:courseId/live-sessions', authRequired, async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
+    router.get('/courses/:courseId/live-sessions', middleware_js_1.authRequired, async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
         const user = req.user;
         // Check access
         if (user.role === 'ADMIN') {
-            const sessions = await prisma.liveSession.findMany({
+            const sessions = await db_js_1.prisma.liveSession.findMany({
                 where: { courseId: params.courseId },
                 include: { teacher: { select: { id: true, fullName: true, email: true } }, class: true },
                 orderBy: { scheduledAt: 'asc' },
@@ -24,7 +27,7 @@ export function registerLiveSessionRoutes(router) {
         }
         if (user.role === 'TEACHER') {
             // Teacher sees sessions they created for courses they teach
-            const sessions = await prisma.liveSession.findMany({
+            const sessions = await db_js_1.prisma.liveSession.findMany({
                 where: { courseId: params.courseId, teacherId: user.id },
                 include: { teacher: { select: { id: true, fullName: true, email: true } }, class: true },
                 orderBy: { scheduledAt: 'asc' },
@@ -33,7 +36,7 @@ export function registerLiveSessionRoutes(router) {
             return;
         }
         // Student sees sessions for classes they're enrolled in
-        const sessions = await prisma.liveSession.findMany({
+        const sessions = await db_js_1.prisma.liveSession.findMany({
             where: {
                 courseId: params.courseId,
                 class: { students: { some: { studentId: user.id } } },
@@ -44,10 +47,10 @@ export function registerLiveSessionRoutes(router) {
         res.json(sessions);
     });
     // Get live sessions for a class (for students/teachers)
-    router.get('/classes/:classId/live-sessions', authRequired, async (req, res) => {
-        const params = z.object({ classId: z.string() }).parse(req.params);
+    router.get('/classes/:classId/live-sessions', middleware_js_1.authRequired, async (req, res) => {
+        const params = zod_1.z.object({ classId: zod_1.z.string() }).parse(req.params);
         const user = req.user;
-        const sessions = await prisma.liveSession.findMany({
+        const sessions = await db_js_1.prisma.liveSession.findMany({
             where: { classId: params.classId },
             include: {
                 teacher: { select: { id: true, fullName: true, email: true } },
@@ -59,11 +62,11 @@ export function registerLiveSessionRoutes(router) {
         res.json(sessions);
     });
     // Get all upcoming live sessions for current user - MUST be before /live-sessions/:sessionId
-    router.get('/live-sessions/upcoming', authRequired, async (req, res) => {
+    router.get('/live-sessions/upcoming', middleware_js_1.authRequired, async (req, res) => {
         const user = req.user;
         console.log('Fetching sessions for user:', user.id, 'role:', user.role);
         if (user.role === 'ADMIN') {
-            const sessions = await prisma.liveSession.findMany({
+            const sessions = await db_js_1.prisma.liveSession.findMany({
                 where: { status: { in: ['SCHEDULED', 'LIVE'] } },
                 include: { teacher: { select: { id: true, fullName: true, email: true } }, course: true, class: true },
                 orderBy: { scheduledAt: 'asc' },
@@ -74,7 +77,7 @@ export function registerLiveSessionRoutes(router) {
             return;
         }
         if (user.role === 'TEACHER') {
-            const sessions = await prisma.liveSession.findMany({
+            const sessions = await db_js_1.prisma.liveSession.findMany({
                 where: { teacherId: user.id, status: { in: ['SCHEDULED', 'LIVE'] } },
                 include: { teacher: { select: { id: true, fullName: true, email: true } }, course: true, class: true },
                 orderBy: { scheduledAt: 'asc' },
@@ -85,7 +88,7 @@ export function registerLiveSessionRoutes(router) {
             return;
         }
         // Student - show all scheduled and live sessions for their classes
-        const sessions = await prisma.liveSession.findMany({
+        const sessions = await db_js_1.prisma.liveSession.findMany({
             where: {
                 class: { students: { some: { studentId: user.id } } },
                 status: { in: ['SCHEDULED', 'LIVE'] },
@@ -98,10 +101,10 @@ export function registerLiveSessionRoutes(router) {
         res.json(sessions);
     });
     // Get a single live session by ID
-    router.get('/live-sessions/:sessionId', authRequired, async (req, res) => {
-        const params = z.object({ sessionId: z.string() }).parse(req.params);
+    router.get('/live-sessions/:sessionId', middleware_js_1.authRequired, async (req, res) => {
+        const params = zod_1.z.object({ sessionId: zod_1.z.string() }).parse(req.params);
         const user = req.user;
-        const session = await prisma.liveSession.findUnique({
+        const session = await db_js_1.prisma.liveSession.findUnique({
             where: { id: params.sessionId },
             include: {
                 teacher: { select: { id: true, fullName: true, email: true } },
@@ -127,7 +130,7 @@ export function registerLiveSessionRoutes(router) {
             return;
         }
         // Student - must be in the class
-        const enrollment = await prisma.classStudent.findUnique({
+        const enrollment = await db_js_1.prisma.classStudent.findUnique({
             where: { classId_studentId: { classId: session.classId, studentId: user.id } },
         });
         if (enrollment) {
@@ -137,18 +140,18 @@ export function registerLiveSessionRoutes(router) {
         res.status(403).json({ error: 'forbidden' });
     });
     // Create a live session (Teacher only)
-    router.post('/courses/:courseId/live-sessions', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
-        const body = z.object({
-            classId: z.string(),
-            title: z.string().min(2),
-            description: z.string().optional(),
-            scheduledAt: z.string(),
-            duration: z.number().int().min(15).max(480),
+    router.post('/courses/:courseId/live-sessions', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
+        const body = zod_1.z.object({
+            classId: zod_1.z.string(),
+            title: zod_1.z.string().min(2),
+            description: zod_1.z.string().optional(),
+            scheduledAt: zod_1.z.string(),
+            duration: zod_1.z.number().int().min(15).max(480),
         }).parse(req.body);
         const user = req.user;
         // Verify teacher teaches this course in this class
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { courseId: params.courseId, classId: body.classId, teacherId: user.id },
         });
         if (!courseClass) {
@@ -157,7 +160,7 @@ export function registerLiveSessionRoutes(router) {
         }
         const meetingRoom = generateMeetingRoom(body.title);
         const meetingUrl = `https://meet.jit.si/${meetingRoom}`;
-        const session = await prisma.liveSession.create({
+        const session = await db_js_1.prisma.liveSession.create({
             data: {
                 courseId: params.courseId,
                 classId: body.classId,
@@ -178,17 +181,17 @@ export function registerLiveSessionRoutes(router) {
         res.json(session);
     });
     // Update live session status (Teacher only)
-    router.patch('/live-sessions/:sessionId', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ sessionId: z.string() }).parse(req.params);
-        const body = z.object({
-            status: z.enum(['SCHEDULED', 'LIVE', 'ENDED']).optional(),
-            title: z.string().min(2).optional(),
-            description: z.string().optional(),
-            scheduledAt: z.string().optional(),
-            duration: z.number().int().min(15).max(480).optional(),
+    router.patch('/live-sessions/:sessionId', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ sessionId: zod_1.z.string() }).parse(req.params);
+        const body = zod_1.z.object({
+            status: zod_1.z.enum(['SCHEDULED', 'LIVE', 'ENDED']).optional(),
+            title: zod_1.z.string().min(2).optional(),
+            description: zod_1.z.string().optional(),
+            scheduledAt: zod_1.z.string().optional(),
+            duration: zod_1.z.number().int().min(15).max(480).optional(),
         }).parse(req.body);
         const user = req.user;
-        const session = await prisma.liveSession.findUnique({ where: { id: params.sessionId } });
+        const session = await db_js_1.prisma.liveSession.findUnique({ where: { id: params.sessionId } });
         if (!session) {
             res.status(404).json({ error: 'not_found' });
             return;
@@ -197,7 +200,7 @@ export function registerLiveSessionRoutes(router) {
             res.status(403).json({ error: 'forbidden' });
             return;
         }
-        const updated = await prisma.liveSession.update({
+        const updated = await db_js_1.prisma.liveSession.update({
             where: { id: params.sessionId },
             data: {
                 ...body,
@@ -212,10 +215,10 @@ export function registerLiveSessionRoutes(router) {
         res.json(updated);
     });
     // Delete live session (Teacher only)
-    router.delete('/live-sessions/:sessionId', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ sessionId: z.string() }).parse(req.params);
+    router.delete('/live-sessions/:sessionId', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ sessionId: zod_1.z.string() }).parse(req.params);
         const user = req.user;
-        const session = await prisma.liveSession.findUnique({ where: { id: params.sessionId } });
+        const session = await db_js_1.prisma.liveSession.findUnique({ where: { id: params.sessionId } });
         if (!session) {
             res.status(404).json({ error: 'not_found' });
             return;
@@ -224,7 +227,7 @@ export function registerLiveSessionRoutes(router) {
             res.status(403).json({ error: 'forbidden' });
             return;
         }
-        await prisma.liveSession.delete({ where: { id: params.sessionId } });
+        await db_js_1.prisma.liveSession.delete({ where: { id: params.sessionId } });
         res.json({ success: true });
     });
 }

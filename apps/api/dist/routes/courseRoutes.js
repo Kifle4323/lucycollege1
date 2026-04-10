@@ -1,17 +1,20 @@
-import { z } from 'zod';
-import { prisma } from '../db.js';
-import { authRequired, requireRole } from '../middleware.js';
-export function registerCourseRoutes(router) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.registerCourseRoutes = registerCourseRoutes;
+const zod_1 = require("zod");
+const db_js_1 = require("../db.js");
+const middleware_js_1 = require("../middleware.js");
+function registerCourseRoutes(router) {
     // Create course (Admin only)
-    router.post('/courses', authRequired, requireRole(['ADMIN']), async (req, res) => {
-        const body = z
+    router.post('/courses', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (req, res) => {
+        const body = zod_1.z
             .object({
-            title: z.string().min(2),
-            code: z.string().min(2),
-            description: z.string().optional(),
+            title: zod_1.z.string().min(2),
+            code: zod_1.z.string().min(2),
+            description: zod_1.z.string().optional(),
         })
             .parse(req.body);
-        const course = await prisma.course.create({
+        const course = await db_js_1.prisma.course.create({
             data: {
                 title: body.title,
                 code: body.code,
@@ -21,10 +24,10 @@ export function registerCourseRoutes(router) {
         res.json(course);
     });
     // Get courses based on role
-    router.get('/courses', authRequired, async (req, res) => {
+    router.get('/courses', middleware_js_1.authRequired, async (req, res) => {
         const user = req.user;
         if (user.role === 'ADMIN') {
-            const courses = await prisma.course.findMany({
+            const courses = await db_js_1.prisma.course.findMany({
                 include: {
                     courseClasses: {
                         include: {
@@ -40,7 +43,7 @@ export function registerCourseRoutes(router) {
         }
         if (user.role === 'TEACHER') {
             // Get courses where teacher is assigned through CourseClass
-            const courses = await prisma.course.findMany({
+            const courses = await db_js_1.prisma.course.findMany({
                 where: {
                     courseClasses: {
                         some: { teacherId: user.id },
@@ -60,7 +63,7 @@ export function registerCourseRoutes(router) {
             return;
         }
         // Student - get courses through their classes
-        const courses = await prisma.course.findMany({
+        const courses = await db_js_1.prisma.course.findMany({
             where: {
                 courseClasses: {
                     some: {
@@ -83,19 +86,19 @@ export function registerCourseRoutes(router) {
         res.json(courses);
     });
     // Get all users (for admin to assign teachers/students)
-    router.get('/users', authRequired, requireRole(['ADMIN']), async (_req, res) => {
-        const users = await prisma.user.findMany({
+    router.get('/users', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['ADMIN']), async (_req, res) => {
+        const users = await db_js_1.prisma.user.findMany({
             select: { id: true, email: true, fullName: true, role: true, profileImage: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
         });
         res.json(users);
     });
     // Get students enrolled in a course (Teacher only - for courses they teach)
-    router.get('/courses/:courseId/students', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
+    router.get('/courses/:courseId/students', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
         const user = req.user;
         // Verify teacher teaches this course
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { courseId: params.courseId, teacherId: user.id },
         });
         if (!courseClass) {
@@ -103,7 +106,7 @@ export function registerCourseRoutes(router) {
             return;
         }
         // Get all students in the class(es) where this course is taught by this teacher
-        const courseClasses = await prisma.courseClass.findMany({
+        const courseClasses = await db_js_1.prisma.courseClass.findMany({
             where: { courseId: params.courseId, teacherId: user.id },
             include: {
                 class: {
@@ -130,11 +133,11 @@ export function registerCourseRoutes(router) {
         res.json(uniqueStudents);
     });
     // Get students enrolled in a specific course-class (Teacher only)
-    router.get('/course-classes/:courseClassId/students', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseClassId: z.string() }).parse(req.params);
+    router.get('/course-classes/:courseClassId/students', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseClassId: zod_1.z.string() }).parse(req.params);
         const user = req.user;
         // Verify teacher teaches this course-class
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { id: params.courseClassId, teacherId: user.id },
             include: {
                 class: {
@@ -158,17 +161,17 @@ export function registerCourseRoutes(router) {
         res.json(students);
     });
     // Student: Get own attempts for a course
-    router.get('/courses/:courseId/my-attempts', authRequired, requireRole(['STUDENT']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
+    router.get('/courses/:courseId/my-attempts', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['STUDENT']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
         const user = req.user;
         // Get all assessments for this course
-        const assessments = await prisma.assessment.findMany({
+        const assessments = await db_js_1.prisma.assessment.findMany({
             where: { courseId: params.courseId },
             select: { id: true },
         });
         const assessmentIds = assessments.map((a) => a.id);
         // Get student's attempts for these assessments
-        const attempts = await prisma.attempt.findMany({
+        const attempts = await db_js_1.prisma.attempt.findMany({
             where: {
                 studentId: user.id,
                 assessmentId: { in: assessmentIds },

@@ -1,40 +1,43 @@
-import { z } from 'zod';
-import { prisma } from '../db.js';
-import { authRequired, requireRole } from '../middleware.js';
-export function registerGradebookRoutes(router) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.registerGradebookRoutes = registerGradebookRoutes;
+const zod_1 = require("zod");
+const db_js_1 = require("../db.js");
+const middleware_js_1 = require("../middleware.js");
+function registerGradebookRoutes(router) {
     // Get or create grade config for a course
-    router.get('/courses/:courseId/grade-config', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
+    router.get('/courses/:courseId/grade-config', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
         // Verify teacher teaches this course
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { courseId: params.courseId, teacherId: req.user.id },
         });
         if (!courseClass) {
             res.status(403).json({ error: 'forbidden' });
             return;
         }
-        let config = await prisma.courseGradeConfig.findUnique({
+        let config = await db_js_1.prisma.courseGradeConfig.findUnique({
             where: { courseId: params.courseId },
         });
         // Create default config if not exists
         if (!config) {
-            config = await prisma.courseGradeConfig.create({
+            config = await db_js_1.prisma.courseGradeConfig.create({
                 data: { courseId: params.courseId },
             });
         }
         res.json(config);
     });
     // Update grade config
-    router.patch('/courses/:courseId/grade-config', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
-        const body = z.object({
-            quizWeight: z.number().int().min(0).max(100).optional(),
-            midtermWeight: z.number().int().min(0).max(100).optional(),
-            finalWeight: z.number().int().min(0).max(100).optional(),
-            attendanceWeight: z.number().int().min(0).max(100).optional(),
+    router.patch('/courses/:courseId/grade-config', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
+        const body = zod_1.z.object({
+            quizWeight: zod_1.z.number().int().min(0).max(100).optional(),
+            midtermWeight: zod_1.z.number().int().min(0).max(100).optional(),
+            finalWeight: zod_1.z.number().int().min(0).max(100).optional(),
+            attendanceWeight: zod_1.z.number().int().min(0).max(100).optional(),
         }).parse(req.body);
         // Verify teacher teaches this course
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { courseId: params.courseId, teacherId: req.user.id },
         });
         if (!courseClass) {
@@ -42,7 +45,7 @@ export function registerGradebookRoutes(router) {
             return;
         }
         // Validate weights sum to 100
-        const current = await prisma.courseGradeConfig.findUnique({
+        const current = await db_js_1.prisma.courseGradeConfig.findUnique({
             where: { courseId: params.courseId },
         }) || { quizWeight: 25, midtermWeight: 25, finalWeight: 40, attendanceWeight: 10 };
         const newWeights = {
@@ -56,7 +59,7 @@ export function registerGradebookRoutes(router) {
             res.status(400).json({ error: 'invalid_weights', message: `Weights must sum to 100, got ${total}` });
             return;
         }
-        const config = await prisma.courseGradeConfig.upsert({
+        const config = await db_js_1.prisma.courseGradeConfig.upsert({
             where: { courseId: params.courseId },
             update: newWeights,
             create: { courseId: params.courseId, ...newWeights },
@@ -64,38 +67,38 @@ export function registerGradebookRoutes(router) {
         res.json(config);
     });
     // Get attendance for a course (all students)
-    router.get('/courses/:courseId/attendance', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
+    router.get('/courses/:courseId/attendance', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
         // Verify teacher teaches this course
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { courseId: params.courseId, teacherId: req.user.id },
         });
         if (!courseClass) {
             res.status(403).json({ error: 'forbidden' });
             return;
         }
-        const attendance = await prisma.attendance.findMany({
+        const attendance = await db_js_1.prisma.attendance.findMany({
             where: { courseId: params.courseId },
             include: { student: { select: { id: true, fullName: true, email: true } } },
         });
         res.json(attendance);
     });
     // Set attendance for a student
-    router.put('/courses/:courseId/attendance/:studentId', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseId: z.string(), studentId: z.string() }).parse(req.params);
-        const body = z.object({
-            score: z.number().int().min(0).max(100),
-            feedback: z.string().optional(),
+    router.put('/courses/:courseId/attendance/:studentId', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string(), studentId: zod_1.z.string() }).parse(req.params);
+        const body = zod_1.z.object({
+            score: zod_1.z.number().int().min(0).max(100),
+            feedback: zod_1.z.string().optional(),
         }).parse(req.body);
         // Verify teacher teaches this course
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { courseId: params.courseId, teacherId: req.user.id },
         });
         if (!courseClass) {
             res.status(403).json({ error: 'forbidden' });
             return;
         }
-        const attendance = await prisma.attendance.upsert({
+        const attendance = await db_js_1.prisma.attendance.upsert({
             where: {
                 courseId_studentId: {
                     courseId: params.courseId,
@@ -114,10 +117,10 @@ export function registerGradebookRoutes(router) {
         res.json(attendance);
     });
     // Get complete gradebook for a course (teacher view)
-    router.get('/courses/:courseId/gradebook', authRequired, requireRole(['TEACHER']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
+    router.get('/courses/:courseId/gradebook', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['TEACHER']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
         // Verify teacher teaches this course
-        const courseClass = await prisma.courseClass.findFirst({
+        const courseClass = await db_js_1.prisma.courseClass.findFirst({
             where: { courseId: params.courseId, teacherId: req.user.id },
         });
         if (!courseClass) {
@@ -125,11 +128,11 @@ export function registerGradebookRoutes(router) {
             return;
         }
         // Get grade config
-        const config = await prisma.courseGradeConfig.findUnique({
+        const config = await db_js_1.prisma.courseGradeConfig.findUnique({
             where: { courseId: params.courseId },
         }) || { quizWeight: 25, midtermWeight: 25, finalWeight: 40, attendanceWeight: 10 };
         // Get students enrolled in this course
-        const courseClasses = await prisma.courseClass.findMany({
+        const courseClasses = await db_js_1.prisma.courseClass.findMany({
             where: { courseId: params.courseId, teacherId: req.user.id },
             include: {
                 class: {
@@ -154,7 +157,7 @@ export function registerGradebookRoutes(router) {
             return acc;
         }, []);
         // Get all assessments for this course
-        const assessments = await prisma.assessment.findMany({
+        const assessments = await db_js_1.prisma.assessment.findMany({
             where: { courseId: params.courseId },
             include: {
                 questions: true,
@@ -166,7 +169,7 @@ export function registerGradebookRoutes(router) {
         });
         const typedAssessments = assessments;
         // Get attendance
-        const attendance = await prisma.attendance.findMany({
+        const attendance = await db_js_1.prisma.attendance.findMany({
             where: { courseId: params.courseId },
         });
         const typedAttendance = attendance;
@@ -233,14 +236,14 @@ export function registerGradebookRoutes(router) {
         });
     });
     // Get student's own grades for a course
-    router.get('/courses/:courseId/my-grades', authRequired, requireRole(['STUDENT']), async (req, res) => {
-        const params = z.object({ courseId: z.string() }).parse(req.params);
+    router.get('/courses/:courseId/my-grades', middleware_js_1.authRequired, (0, middleware_js_1.requireRole)(['STUDENT']), async (req, res) => {
+        const params = zod_1.z.object({ courseId: zod_1.z.string() }).parse(req.params);
         // Get grade config
-        const config = await prisma.courseGradeConfig.findUnique({
+        const config = await db_js_1.prisma.courseGradeConfig.findUnique({
             where: { courseId: params.courseId },
         }) || { quizWeight: 25, midtermWeight: 25, finalWeight: 40, attendanceWeight: 10 };
         // Get all assessments for this course
-        const assessments = await prisma.assessment.findMany({
+        const assessments = await db_js_1.prisma.assessment.findMany({
             where: { courseId: params.courseId },
             include: {
                 questions: true,
@@ -251,7 +254,7 @@ export function registerGradebookRoutes(router) {
         });
         const typedAssessments = assessments;
         // Get attendance
-        const attendance = await prisma.attendance.findUnique({
+        const attendance = await db_js_1.prisma.attendance.findUnique({
             where: {
                 courseId_studentId: {
                     courseId: params.courseId,

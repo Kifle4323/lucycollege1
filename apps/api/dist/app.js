@@ -47,7 +47,4 @@ app.use((err, _req, res, _next) => {
     const message = err instanceof Error ? err.message : 'internal_error';
     res.status(500).json({ error: 'internal_error', message });
 });
-const port = Number(process.env.PORT ?? 4000);
-app.listen(port, '0.0.0.0', () => {
-    process.stdout.write(`API listening on http://localhost:${port} (network accessible)\n`);
-});
+exports.default = app;
