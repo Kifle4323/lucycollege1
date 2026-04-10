@@ -351,3 +351,118 @@ export async function rejectStudentProfile(profileId, reason) {
 export async function getAdminNotifications() {
   return apiFetch('/admin/notifications');
 }
+
+// ==================== Academic Management ====================
+
+// Academic Years (Admin)
+export async function createAcademicYear(data) {
+  return apiFetch('/admin/academic-years', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getAcademicYears() {
+  return apiFetch('/admin/academic-years');
+}
+
+export async function updateAcademicYear(id, data) {
+  return apiFetch(`/admin/academic-years/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+export async function deleteAcademicYear(id) {
+  return apiFetch(`/admin/academic-years/${id}`, { method: 'DELETE' });
+}
+
+// Semesters (Admin)
+export async function createSemester(data) {
+  return apiFetch('/admin/semesters', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getSemesters() {
+  return apiFetch('/admin/semesters');
+}
+
+export async function getCurrentSemester() {
+  return apiFetch('/semesters/current');
+}
+
+export async function updateSemester(id, data) {
+  return apiFetch(`/admin/semesters/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+export async function deleteSemester(id) {
+  return apiFetch(`/admin/semesters/${id}`, { method: 'DELETE' });
+}
+
+export async function publishSemesterGrades(semesterId) {
+  return apiFetch(`/admin/semesters/${semesterId}/publish-grades`, { method: 'POST' });
+}
+
+export async function getSemesterGPAReport(semesterId) {
+  return apiFetch(`/admin/semesters/${semesterId}/gpa-report`);
+}
+
+// Course Sections (Admin)
+export async function createCourseSection(data) {
+  return apiFetch('/admin/course-sections', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getCourseSections(semesterId) {
+  const query = semesterId ? `?semesterId=${semesterId}` : '';
+  return apiFetch(`/admin/course-sections${query}`);
+}
+
+export async function updateCourseSection(id, data) {
+  return apiFetch(`/admin/course-sections/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+export async function deleteCourseSection(id) {
+  return apiFetch(`/admin/course-sections/${id}`, { method: 'DELETE' });
+}
+
+// Enrollments (Admin)
+export async function enrollStudent(data) {
+  return apiFetch('/admin/enrollments', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getSectionEnrollments(sectionId) {
+  return apiFetch(`/admin/course-sections/${sectionId}/enrollments`);
+}
+
+export async function removeEnrollment(enrollmentId) {
+  return apiFetch(`/admin/enrollments/${enrollmentId}`, { method: 'DELETE' });
+}
+
+// Student - Course Registration
+export async function getAvailableCourses() {
+  return apiFetch('/student/available-courses');
+}
+
+export async function getMyEnrollments() {
+  return apiFetch('/student/my-courses');
+}
+
+// Student - Results
+export async function getMyResults(semesterId) {
+  const query = semesterId ? `/${semesterId}` : '';
+  return apiFetch(`/student/results${query}`);
+}
+
+export async function getMyCGPA() {
+  return apiFetch('/student/cgpa');
+}
+
+// Teacher - Course Sections
+export async function getTeacherSections() {
+  return apiFetch('/teacher/my-sections');
+}
+
+export async function getSectionStudents(sectionId) {
+  return apiFetch(`/teacher/sections/${sectionId}/students`);
+}
+
+export async function enterGrade(data) {
+  return apiFetch('/teacher/grades', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function submitSectionGrades(sectionId) {
+  return apiFetch(`/teacher/sections/${sectionId}/submit-grades`, { method: 'POST' });
+}

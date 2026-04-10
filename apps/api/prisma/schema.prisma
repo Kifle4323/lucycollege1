@@ -38,6 +38,34 @@ enum ProfileStatus {
   REJECTED
 }
 
+enum SemesterType {
+  FALL
+  SPRING
+  SUMMER
+}
+
+enum SemesterStatus {
+  UPCOMING
+  REGISTRATION_OPEN
+  IN_PROGRESS
+  GRADING
+  COMPLETED
+}
+
+enum GradeLetter {
+  A_PLUS  // A+ >= 90
+  A       // A >= 85
+  A_MINUS // A- >= 80
+  B_PLUS  // B+ >= 75
+  B       // B >= 70
+  B_MINUS // B- >= 65
+  C_PLUS  // C+ >= 60
+  C       // C >= 50
+  C_MINUS // C- >= 45
+  D       // D >= 40
+  F       // F < 40
+}
+
 model User {
   id              String   @id @default(cuid())
   email           String   @unique
@@ -60,6 +88,8 @@ model User {
   attendance      Attendance[]
   faceVerifications FaceVerification[]
   studentProfile  StudentProfile?
+  courseSections  CourseSection[]  @relation("CourseSectionTeacher")
+  enrollments     StudentEnrollment[]
 }
 
 model StudentProfile {
@@ -199,14 +229,16 @@ model CourseClass {
 }
 
 model Course {
-  id          String   @id @default(cuid())
-  title       String
-  code        String   @unique
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  code         String   @unique
+  description  String?
+  creditHours  Int      @default(3) // Credit hours for the course
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   courseClasses CourseClass[]
+  courseSections CourseSection[]
   assessments   Assessment[]
   materials     Material[]
   liveSessions  LiveSession[]
@@ -384,4 +416,102 @@ model Attendance {
   student  User   @relation(fields: [studentId], references: [id])
 
   @@unique([courseId, studentId])
+}
+
+// === Academic Management Models ===
+
+// Academic Year (e.g., "2024-2025")
+model AcademicYear {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "2024-2025"
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  semesters   Semester[]
+}
+
+// Semester within an academic year
+model Semester {
+  id              String        @id @default(cuid())
+  academicYearId  String
+  type            SemesterType  // FALL, SPRING, SUMMER
+  name            String        // e.g., "Fall 2024"
+  startDate       DateTime
+  endDate         DateTime
+  registrationStart DateTime?
+  registrationEnd   DateTime?
+  examPeriodStart   DateTime?
+  examPeriodEnd     DateTime?
+  gradingDeadline   DateTime?
+  status          SemesterStatus @default(UPCOMING)
+  isCurrent       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  academicYear    AcademicYear  @relation(fields: [academicYearId], references: [id])
+  courseSections  CourseSection[]
+
+  @@unique([academicYearId, type])
+}
+
+// Course offered in a specific semester (Course Section)
+model CourseSection {
+  id          String   @id @default(cuid())
+  courseId    String
+  semesterId  String
+  teacherId   String
+  sectionCode String   // e.g., "CS101-A" (course code + section)
+  schedule    String?  // e.g., "Mon/Wed 9:00-10:30"
+  room        String?  // e.g., "Room 101"
+  maxCapacity Int?
+  isPublished Boolean  @default(false) // Visible to students for registration
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course   @relation(fields: [courseId], references: [id])
+  semester    Semester @relation(fields: [semesterId], references: [id])
+  teacher     User     @relation("CourseSectionTeacher", fields: [teacherId], references: [id])
+  enrollments StudentEnrollment[]
+
+  @@unique([courseId, semesterId, sectionCode])
+}
+
+// Student enrollment in a course section
+model StudentEnrollment {
+  id              String   @id @default(cuid())
+  courseSectionId String
+  studentId       String
+  enrolledAt      DateTime @default(now())
+  status          String   @default("ENROLLED") // ENROLLED, DROPPED, WITHDRAWN
+
+  courseSection   CourseSection @relation(fields: [courseSectionId], references: [id])
+  student         User          @relation(fields: [studentId], references: [id])
+  grade           StudentGrade?
+
+  @@unique([courseSectionId, studentId])
+}
+
+// Student's grade for a course section
+model StudentGrade {
+  id              String     @id @default(cuid())
+  enrollmentId    String     @unique
+  quizScore       Int?       // Score out of 100
+  midtermScore    Int?       // Score out of 100
+  finalScore      Int?       // Score out of 100
+  attendanceScore Int?       // Score out of 100
+  totalScore      Int?       // Calculated total score out of 100
+  gradeLetter     GradeLetter?
+  gradePoint      Float?     // 4.0, 3.75, 3.5, etc.
+  isSubmitted     Boolean    @default(false) // Teacher has submitted final grade
+  isPublished     Boolean    @default(false) // Admin has published grades
+  submittedAt     DateTime?
+  publishedAt     DateTime?
+  feedback        String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  enrollment      StudentEnrollment @relation(fields: [enrollmentId], references: [id])
 }

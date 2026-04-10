@@ -1,0 +1,768 @@
+// @ts-nocheck
+import type { Request, Response, Router } from 'express';
+import { z } from 'zod';
+import { prisma } from '../db.js';
+import { authRequired, requireRole, type AuthedRequest } from '../middleware.js';
+
+// Grade point mapping based on the grading scale
+const GRADE_POINTS: Record<string, { min: number; max: number; point: number; letter: string }> = {
+  'A+': { min: 90, max: 100, point: 4.0, letter: 'A+' },
+  'A': { min: 85, max: 89, point: 4.0, letter: 'A' },
+  'A-': { min: 80, max: 84, point: 3.75, letter: 'A-' },
+  'B+': { min: 75, max: 79, point: 3.5, letter: 'B+' },
+  'B': { min: 70, max: 74, point: 3.0, letter: 'B' },
+  'B-': { min: 65, max: 69, point: 2.75, letter: 'B-' },
+  'C+': { min: 60, max: 64, point: 2.5, letter: 'C+' },
+  'C': { min: 50, max: 59, point: 2.0, letter: 'C' },
+  'C-': { min: 45, max: 49, point: 1.75, letter: 'C-' },
+  'D': { min: 40, max: 44, point: 1.0, letter: 'D' },
+  'F': { min: 0, max: 39, point: 0.0, letter: 'F' },
+};
+
+// Helper function to get grade letter and point from score
+function getGradeFromScore(score: number): { letter: string; point: number } {
+  for (const [, data] of Object.entries(GRADE_POINTS)) {
+    if (score >= data.min && score <= data.max) {
+      return { letter: data.letter, point: data.point };
+    }
+  }
+  return { letter: 'F', point: 0.0 };
+}
+
+export function registerAcademicRoutes(router: Router) {
+  // ==================== ACADEMIC YEAR MANAGEMENT (Admin) ====================
+
+  // Create academic year
+  router.post('/admin/academic-years', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const body = z.object({
+      name: z.string().min(1), // e.g., "2024-2025"
+      startDate: z.string(),
+      endDate: z.string(),
+    }).parse(req.body);
+
+    const academicYear = await prisma.academicYear.create({
+      data: {
+        name: body.name,
+        startDate: new Date(body.startDate),
+        endDate: new Date(body.endDate),
+      },
+    });
+
+    res.status(201).json(academicYear);
+  });
+
+  // Get all academic years
+  router.get('/admin/academic-years', authRequired, requireRole(['ADMIN']), async (_req: AuthedRequest, res: Response) => {
+    const academicYears = await prisma.academicYear.findMany({
+      include: { semesters: true },
+      orderBy: { startDate: 'desc' },
+    });
+    res.json(academicYears);
+  });
+
+  // Update academic year
+  router.patch('/admin/academic-years/:id', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    const body = z.object({
+      name: z.string().min(1).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      isActive: z.boolean().optional(),
+    }).parse(req.body);
+
+    const academicYear = await prisma.academicYear.update({
+      where: { id: params.id },
+      data: {
+        ...body,
+        startDate: body.startDate ? new Date(body.startDate) : undefined,
+        endDate: body.endDate ? new Date(body.endDate) : undefined,
+      },
+    });
+
+    res.json(academicYear);
+  });
+
+  // Delete academic year
+  router.delete('/admin/academic-years/:id', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    await prisma.academicYear.delete({ where: { id: params.id } });
+    res.status(204).send();
+  });
+
+  // ==================== SEMESTER MANAGEMENT (Admin) ====================
+
+  // Create semester
+  router.post('/admin/semesters', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const body = z.object({
+      academicYearId: z.string(),
+      type: z.enum(['FALL', 'SPRING', 'SUMMER']),
+      name: z.string().min(1), // e.g., "Fall 2024"
+      startDate: z.string(),
+      endDate: z.string(),
+      registrationStart: z.string().optional(),
+      registrationEnd: z.string().optional(),
+      examPeriodStart: z.string().optional(),
+      examPeriodEnd: z.string().optional(),
+      gradingDeadline: z.string().optional(),
+    }).parse(req.body);
+
+    const semester = await prisma.semester.create({
+      data: {
+        academicYearId: body.academicYearId,
+        type: body.type,
+        name: body.name,
+        startDate: new Date(body.startDate),
+        endDate: new Date(body.endDate),
+        registrationStart: body.registrationStart ? new Date(body.registrationStart) : null,
+        registrationEnd: body.registrationEnd ? new Date(body.registrationEnd) : null,
+        examPeriodStart: body.examPeriodStart ? new Date(body.examPeriodStart) : null,
+        examPeriodEnd: body.examPeriodEnd ? new Date(body.examPeriodEnd) : null,
+        gradingDeadline: body.gradingDeadline ? new Date(body.gradingDeadline) : null,
+      },
+      include: { academicYear: true },
+    });
+
+    res.status(201).json(semester);
+  });
+
+  // Get all semesters
+  router.get('/admin/semesters', authRequired, requireRole(['ADMIN']), async (_req: AuthedRequest, res: Response) => {
+    const semesters = await prisma.semester.findMany({
+      include: { academicYear: true, _count: { select: { courseSections: true } } },
+      orderBy: { startDate: 'desc' },
+    });
+    res.json(semesters);
+  });
+
+  // Get current semester
+  router.get('/semesters/current', authRequired, async (_req: AuthedRequest, res: Response) => {
+    const semester = await prisma.semester.findFirst({
+      where: { isCurrent: true },
+      include: { academicYear: true },
+    });
+    res.json(semester);
+  });
+
+  // Update semester
+  router.patch('/admin/semesters/:id', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    const body = z.object({
+      name: z.string().min(1).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      registrationStart: z.string().nullable().optional(),
+      registrationEnd: z.string().nullable().optional(),
+      examPeriodStart: z.string().nullable().optional(),
+      examPeriodEnd: z.string().nullable().optional(),
+      gradingDeadline: z.string().nullable().optional(),
+      status: z.enum(['UPCOMING', 'REGISTRATION_OPEN', 'IN_PROGRESS', 'GRADING', 'COMPLETED']).optional(),
+      isCurrent: z.boolean().optional(),
+    }).parse(req.body);
+
+    // If setting as current, unset other current semesters
+    if (body.isCurrent) {
+      await prisma.semester.updateMany({
+        where: { isCurrent: true },
+        data: { isCurrent: false },
+      });
+    }
+
+    const semester = await prisma.semester.update({
+      where: { id: params.id },
+      data: {
+        ...body,
+        startDate: body.startDate ? new Date(body.startDate) : undefined,
+        endDate: body.endDate ? new Date(body.endDate) : undefined,
+        registrationStart: body.registrationStart ? new Date(body.registrationStart) : body.registrationStart === null ? null : undefined,
+        registrationEnd: body.registrationEnd ? new Date(body.registrationEnd) : body.registrationEnd === null ? null : undefined,
+        examPeriodStart: body.examPeriodStart ? new Date(body.examPeriodStart) : body.examPeriodStart === null ? null : undefined,
+        examPeriodEnd: body.examPeriodEnd ? new Date(body.examPeriodEnd) : body.examPeriodEnd === null ? null : undefined,
+        gradingDeadline: body.gradingDeadline ? new Date(body.gradingDeadline) : body.gradingDeadline === null ? null : undefined,
+      },
+      include: { academicYear: true },
+    });
+
+    res.json(semester);
+  });
+
+  // Delete semester
+  router.delete('/admin/semesters/:id', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    await prisma.semester.delete({ where: { id: params.id } });
+    res.status(204).send();
+  });
+
+  // ==================== COURSE SECTION MANAGEMENT (Admin) ====================
+
+  // Create course section (assign course to teacher for a semester)
+  router.post('/admin/course-sections', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const body = z.object({
+      courseId: z.string(),
+      semesterId: z.string(),
+      teacherId: z.string(),
+      sectionCode: z.string().min(1), // e.g., "CS101-A"
+      schedule: z.string().optional(),
+      room: z.string().optional(),
+      maxCapacity: z.number().int().optional(),
+    }).parse(req.body);
+
+    const courseSection = await prisma.courseSection.create({
+      data: {
+        courseId: body.courseId,
+        semesterId: body.semesterId,
+        teacherId: body.teacherId,
+        sectionCode: body.sectionCode,
+        schedule: body.schedule,
+        room: body.room,
+        maxCapacity: body.maxCapacity,
+      },
+      include: { course: true, semester: true, teacher: true },
+    });
+
+    res.status(201).json(courseSection);
+  });
+
+  // Get all course sections for a semester
+  router.get('/admin/course-sections', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const query = z.object({ semesterId: z.string().optional() }).parse(req.query);
+
+    const courseSections = await prisma.courseSection.findMany({
+      where: query.semesterId ? { semesterId: query.semesterId } : undefined,
+      include: {
+        course: true,
+        semester: true,
+        teacher: { select: { id: true, fullName: true, email: true } },
+        _count: { select: { enrollments: true } },
+      },
+      orderBy: { sectionCode: 'asc' },
+    });
+
+    res.json(courseSections);
+  });
+
+  // Update course section
+  router.patch('/admin/course-sections/:id', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    const body = z.object({
+      teacherId: z.string().optional(),
+      sectionCode: z.string().min(1).optional(),
+      schedule: z.string().optional(),
+      room: z.string().optional(),
+      maxCapacity: z.number().int().optional(),
+      isPublished: z.boolean().optional(),
+    }).parse(req.body);
+
+    const courseSection = await prisma.courseSection.update({
+      where: { id: params.id },
+      data: body,
+      include: { course: true, semester: true, teacher: true },
+    });
+
+    res.json(courseSection);
+  });
+
+  // Delete course section
+  router.delete('/admin/course-sections/:id', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    await prisma.courseSection.delete({ where: { id: params.id } });
+    res.status(204).send();
+  });
+
+  // ==================== STUDENT ENROLLMENT ====================
+
+  // Admin: Enroll student in course section
+  router.post('/admin/enrollments', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const body = z.object({
+      courseSectionId: z.string(),
+      studentId: z.string(),
+    }).parse(req.body);
+
+    // Check if already enrolled
+    const existing = await prisma.studentEnrollment.findUnique({
+      where: {
+        courseSectionId_studentId: {
+          courseSectionId: body.courseSectionId,
+          studentId: body.studentId,
+        },
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: 'Student already enrolled in this course section' });
+    }
+
+    const enrollment = await prisma.studentEnrollment.create({
+      data: {
+        courseSectionId: body.courseSectionId,
+        studentId: body.studentId,
+      },
+      include: {
+        student: { select: { id: true, fullName: true, email: true } },
+        courseSection: { include: { course: true } },
+      },
+    });
+
+    res.status(201).json(enrollment);
+  });
+
+  // Admin: Get all enrollments for a course section
+  router.get('/admin/course-sections/:id/enrollments', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: { courseSectionId: params.id },
+      include: {
+        student: { select: { id: true, fullName: true, email: true } },
+        grade: true,
+      },
+    });
+
+    res.json(enrollments);
+  });
+
+  // Admin: Remove enrollment
+  router.delete('/admin/enrollments/:id', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    await prisma.studentEnrollment.delete({ where: { id: params.id } });
+    res.status(204).send();
+  });
+
+  // Student: Get available courses for registration
+  router.get('/student/available-courses', authRequired, requireRole(['STUDENT']), async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+
+    // Get current semester with registration open
+    const currentSemester = await prisma.semester.findFirst({
+      where: {
+        status: 'REGISTRATION_OPEN',
+      },
+    });
+
+    if (!currentSemester) {
+      return res.json([]);
+    }
+
+    // Get published course sections that student is not enrolled in
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: { studentId: user.id },
+      select: { courseSectionId: true },
+    });
+
+    const enrolledIds = enrollments.map(e => e.courseSectionId);
+
+    const courseSections = await prisma.courseSection.findMany({
+      where: {
+        semesterId: currentSemester.id,
+        isPublished: true,
+        id: { notIn: enrolledIds },
+      },
+      include: {
+        course: true,
+        teacher: { select: { id: true, fullName: true } },
+        semester: true,
+        _count: { select: { enrollments: true } },
+      },
+    });
+
+    res.json(courseSections);
+  });
+
+  // Student: Get my enrollments
+  router.get('/student/my-courses', authRequired, requireRole(['STUDENT']), async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: { studentId: user.id, status: 'ENROLLED' },
+      include: {
+        courseSection: {
+          include: {
+            course: true,
+            teacher: { select: { id: true, fullName: true } },
+            semester: { include: { academicYear: true } },
+          },
+        },
+        grade: true,
+      },
+      orderBy: { enrolledAt: 'desc' },
+    });
+
+    res.json(enrollments);
+  });
+
+  // ==================== GRADE ENTRY (Teacher) ====================
+
+  // Teacher: Get my course sections
+  router.get('/teacher/my-sections', authRequired, requireRole(['TEACHER']), async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+
+    const sections = await prisma.courseSection.findMany({
+      where: { teacherId: user.id },
+      include: {
+        course: true,
+        semester: { include: { academicYear: true } },
+        _count: { select: { enrollments: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(sections);
+  });
+
+  // Teacher: Get students in my course section
+  router.get('/teacher/sections/:id/students', authRequired, requireRole(['TEACHER']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    const user = req.user!;
+
+    // Verify teacher owns this section
+    const section = await prisma.courseSection.findFirst({
+      where: { id: params.id, teacherId: user.id },
+    });
+
+    if (!section) {
+      return res.status(404).json({ error: 'Course section not found' });
+    }
+
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: { courseSectionId: params.id },
+      include: {
+        student: { select: { id: true, fullName: true, email: true } },
+        grade: true,
+      },
+    });
+
+    res.json(enrollments);
+  });
+
+  // Teacher: Enter/Update grade for a student
+  router.post('/teacher/grades', authRequired, requireRole(['TEACHER']), async (req: AuthedRequest, res: Response) => {
+    const body = z.object({
+      enrollmentId: z.string(),
+      quizScore: z.number().min(0).max(100).optional(),
+      midtermScore: z.number().min(0).max(100).optional(),
+      finalScore: z.number().min(0).max(100).optional(),
+      attendanceScore: z.number().min(0).max(100).optional(),
+      feedback: z.string().optional(),
+    }).parse(req.body);
+
+    const user = req.user!;
+
+    // Verify teacher owns this enrollment's course section
+    const enrollment = await prisma.studentEnrollment.findUnique({
+      where: { id: body.enrollmentId },
+      include: { courseSection: { include: { course: { include: { gradeConfig: true } } } } },
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Enrollment not found' });
+    }
+
+    if (enrollment.courseSection.teacherId !== user.id) {
+      return res.status(403).json({ error: 'Not authorized to grade this student' });
+    }
+
+    // Get grade config or use defaults
+    const config = enrollment.courseSection.course.gradeConfig || {
+      quizWeight: 25,
+      midtermWeight: 25,
+      finalWeight: 40,
+      attendanceWeight: 10,
+    };
+
+    // Calculate total score
+    const quiz = body.quizScore ?? 0;
+    const midterm = body.midtermScore ?? 0;
+    const final = body.finalScore ?? 0;
+    const attendance = body.attendanceScore ?? 0;
+
+    const totalScore = Math.round(
+      (quiz * config.quizWeight / 100) +
+      (midterm * config.midtermWeight / 100) +
+      (final * config.finalWeight / 100) +
+      (attendance * config.attendanceWeight / 100)
+    );
+
+    const { letter, point } = getGradeFromScore(totalScore);
+
+    // Upsert grade
+    const grade = await prisma.studentGrade.upsert({
+      where: { enrollmentId: body.enrollmentId },
+      create: {
+        enrollmentId: body.enrollmentId,
+        quizScore: body.quizScore,
+        midtermScore: body.midtermScore,
+        finalScore: body.finalScore,
+        attendanceScore: body.attendanceScore,
+        totalScore,
+        gradeLetter: letter as any,
+        gradePoint: point,
+        feedback: body.feedback,
+      },
+      update: {
+        quizScore: body.quizScore,
+        midtermScore: body.midtermScore,
+        finalScore: body.finalScore,
+        attendanceScore: body.attendanceScore,
+        totalScore,
+        gradeLetter: letter as any,
+        gradePoint: point,
+        feedback: body.feedback,
+      },
+    });
+
+    res.json(grade);
+  });
+
+  // Teacher: Submit final grades for a course section
+  router.post('/teacher/sections/:id/submit-grades', authRequired, requireRole(['TEACHER']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+    const user = req.user!;
+
+    // Verify teacher owns this section
+    const section = await prisma.courseSection.findFirst({
+      where: { id: params.id, teacherId: user.id },
+    });
+
+    if (!section) {
+      return res.status(404).json({ error: 'Course section not found' });
+    }
+
+    // Mark all grades as submitted
+    await prisma.studentGrade.updateMany({
+      where: {
+        enrollment: { courseSectionId: params.id },
+      },
+      data: {
+        isSubmitted: true,
+        submittedAt: new Date(),
+      },
+    });
+
+    res.json({ message: 'Grades submitted successfully' });
+  });
+
+  // ==================== STUDENT RESULTS ====================
+
+  // Student: Get my results for a semester
+  router.get('/student/results/:semesterId?', authRequired, requireRole(['STUDENT']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ semesterId: z.string().optional() }).parse(req.params);
+    const user = req.user!;
+
+    // Get current semester if not specified
+    let semesterId = params.semesterId;
+    if (!semesterId) {
+      const current = await prisma.semester.findFirst({
+        where: { isCurrent: true },
+      });
+      semesterId = current?.id;
+    }
+
+    if (!semesterId) {
+      return res.json({ semester: null, courses: [], gpa: null });
+    }
+
+    // Get enrollments with grades for this semester
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: {
+        studentId: user.id,
+        courseSection: { semesterId },
+      },
+      include: {
+        courseSection: {
+          include: {
+            course: true,
+            semester: { include: { academicYear: true } },
+          },
+        },
+        grade: true,
+      },
+    });
+
+    // Calculate GPA for this semester
+    let totalPoints = 0;
+    let totalCredits = 0;
+
+    const courses = enrollments.map(e => {
+      const credits = e.courseSection.course.creditHours;
+      const grade = e.grade;
+
+      if (grade && grade.isPublished && grade.gradePoint !== null) {
+        totalPoints += grade.gradePoint * credits;
+        totalCredits += credits;
+      }
+
+      return {
+        id: e.id,
+        course: e.courseSection.course,
+        sectionCode: e.courseSection.sectionCode,
+        creditHours: e.courseSection.course.creditHours,
+        grade: grade ? {
+          quizScore: grade.isPublished ? grade.quizScore : null,
+          midtermScore: grade.isPublished ? grade.midtermScore : null,
+          finalScore: grade.isPublished ? grade.finalScore : null,
+          attendanceScore: grade.isPublished ? grade.attendanceScore : null,
+          totalScore: grade.isPublished ? grade.totalScore : null,
+          gradeLetter: grade.isPublished ? grade.gradeLetter : null,
+          gradePoint: grade.isPublished ? grade.gradePoint : null,
+          isSubmitted: grade.isSubmitted,
+          isPublished: grade.isPublished,
+        } : null,
+      };
+    });
+
+    const gpa = totalCredits > 0 ? totalPoints / totalCredits : null;
+
+    // Get semester info
+    const semester = await prisma.semester.findUnique({
+      where: { id: semesterId },
+      include: { academicYear: true },
+    });
+
+    res.json({ semester, courses, gpa });
+  });
+
+  // Student: Get my CGPA (cumulative)
+  router.get('/student/cgpa', authRequired, requireRole(['STUDENT']), async (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+
+    // Get all enrollments with published grades
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: {
+        studentId: user.id,
+        grade: { isPublished: true },
+      },
+      include: {
+        courseSection: {
+          include: {
+            course: true,
+            semester: { include: { academicYear: true } },
+          },
+        },
+        grade: true,
+      },
+    });
+
+    let totalPoints = 0;
+    let totalCredits = 0;
+
+    const semesterResults: Record<string, { semester: any; points: number; credits: number; gpa: number }> = {};
+
+    for (const e of enrollments) {
+      const credits = e.courseSection.course.creditHours;
+      const grade = e.grade!;
+
+      if (grade.gradePoint !== null) {
+        totalPoints += grade.gradePoint * credits;
+        totalCredits += credits;
+
+        const semKey = e.courseSection.semesterId;
+        if (!semesterResults[semKey]) {
+          semesterResults[semKey] = {
+            semester: e.courseSection.semester,
+            points: 0,
+            credits: 0,
+            gpa: 0,
+          };
+        }
+        semesterResults[semKey].points += grade.gradePoint * credits;
+        semesterResults[semKey].credits += credits;
+      }
+    }
+
+    // Calculate GPA for each semester
+    for (const key of Object.keys(semesterResults)) {
+      const sr = semesterResults[key];
+      sr.gpa = sr.credits > 0 ? sr.points / sr.credits : 0;
+    }
+
+    const cgpa = totalCredits > 0 ? totalPoints / totalCredits : null;
+
+    res.json({
+      cgpa,
+      totalCredits,
+      totalCourses: enrollments.length,
+      semesters: Object.values(semesterResults).sort((a, b) =>
+        new Date(b.semester.startDate).getTime() - new Date(a.semester.startDate).getTime()
+      ),
+    });
+  });
+
+  // ==================== ADMIN: PUBLISH GRADES ====================
+
+  // Admin: Publish grades for a semester
+  router.post('/admin/semesters/:id/publish-grades', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+
+    // Get all submitted grades for this semester
+    const result = await prisma.studentGrade.updateMany({
+      where: {
+        isSubmitted: true,
+        enrollment: { courseSection: { semesterId: params.id } },
+      },
+      data: {
+        isPublished: true,
+        publishedAt: new Date(),
+      },
+    });
+
+    res.json({ message: 'Grades published successfully', count: result.count });
+  });
+
+  // Admin: Get GPA report for a semester
+  router.get('/admin/semesters/:id/gpa-report', authRequired, requireRole(['ADMIN']), async (req: AuthedRequest, res: Response) => {
+    const params = z.object({ id: z.string() }).parse(req.params);
+
+    // Get all enrollments with published grades for this semester
+    const enrollments = await prisma.studentEnrollment.findMany({
+      where: {
+        courseSection: { semesterId: params.id },
+        grade: { isPublished: true },
+      },
+      include: {
+        student: { select: { id: true, fullName: true, email: true } },
+        courseSection: { include: { course: true } },
+        grade: true,
+      },
+    });
+
+    // Group by student
+    const studentMap: Record<string, { student: any; points: number; credits: number; courses: any[] }> = {};
+
+    for (const e of enrollments) {
+      const studentId = e.studentId;
+      if (!studentMap[studentId]) {
+        studentMap[studentId] = {
+          student: e.student,
+          points: 0,
+          credits: 0,
+          courses: [],
+        };
+      }
+
+      const credits = e.courseSection.course.creditHours;
+      const grade = e.grade!;
+
+      if (grade.gradePoint !== null) {
+        studentMap[studentId].points += grade.gradePoint * credits;
+        studentMap[studentId].credits += credits;
+      }
+
+      studentMap[studentId].courses.push({
+        course: e.courseSection.course,
+        gradeLetter: grade.gradeLetter,
+        gradePoint: grade.gradePoint,
+        creditHours: credits,
+      });
+    }
+
+    // Calculate GPA for each student
+    const report = Object.values(studentMap).map(s => ({
+      student: s.student,
+      gpa: s.credits > 0 ? s.points / s.credits : 0,
+      totalCredits: s.credits,
+      courseCount: s.courses.length,
+      courses: s.courses,
+    }));
+
+    res.json(report.sort((a, b) => b.gpa - a.gpa));
+  });
+}

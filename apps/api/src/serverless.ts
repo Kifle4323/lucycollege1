@@ -17,10 +17,11 @@ import { registerGradebookRoutes } from './routes/gradebookRoutes.js';
 import { registerFaceVerificationRoutes } from './routes/faceVerificationRoutes.js';
 import { registerStudentProfileRoutes } from './routes/studentProfileRoutes.js';
 import { registerNotificationRoutes } from './routes/notificationRoutes.js';
+import { registerAcademicRoutes } from './routes/academicRoutes.js';
 
 const app = express();
 
-const corsOrigins = process.env.CORS_ORIGIN 
+const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
   : true;
 
@@ -38,6 +39,7 @@ registerGradebookRoutes(router);
 registerFaceVerificationRoutes(router);
 registerStudentProfileRoutes(router);
 registerNotificationRoutes(router);
+registerAcademicRoutes(router);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api', router);

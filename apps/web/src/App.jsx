@@ -8,6 +8,7 @@ import CoursePage from './pages/CoursePage';
 import AdminClassesPage from './pages/AdminClassesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminCoursesPage from './pages/AdminCoursesPage';
+import AdminAcademicPage from './pages/AdminAcademicPage';
 import MyClassesPage from './pages/MyClassesPage';
 import LiveSessionsPage from './pages/LiveSessionsPage';
 import LiveMeetingPage from './pages/LiveMeetingPage';
@@ -17,6 +18,8 @@ import AdminFaceVerificationPage from './pages/AdminFaceVerificationPage';
 import SettingsPage from './pages/SettingsPage';
 import StudentProfilePage from './pages/StudentProfilePage';
 import AdminStudentProfilesPage from './pages/AdminStudentProfilesPage';
+import TeacherGradesPage from './pages/TeacherGradesPage';
+import StudentResultsPage from './pages/StudentResultsPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -153,6 +156,30 @@ export default function App() {
         element={
           <PrivateRoute>
             <AdminStudentProfilesPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/academic"
+        element={
+          <PrivateRoute>
+            <AdminAcademicPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/teacher/grades"
+        element={
+          <PrivateRoute>
+            <TeacherGradesPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/student/results"
+        element={
+          <PrivateRoute>
+            <StudentResultsPage />
           </PrivateRoute>
         }
       />

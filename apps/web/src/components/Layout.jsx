@@ -1,12 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { useTheme } from '../ThemeContext';
-import { 
-  Home, 
-  Users, 
-  BookOpen, 
-  GraduationCap, 
-  Settings, 
+import {
+  Home,
+  Users,
+  BookOpen,
+  GraduationCap,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -17,7 +17,10 @@ import {
   Moon,
   FileText,
   User,
-  Bell
+  Bell,
+  Calendar,
+  ClipboardList,
+  Award
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import lucyLogo from '../assets/lucy_logobg.png';
@@ -87,15 +90,18 @@ export default function Layout({ children }) {
       { path: '/admin/classes', label: 'Classes', icon: Users },
       { path: '/admin/users', label: 'Users', icon: UserCircle },
       { path: '/admin/courses', label: 'Courses', icon: BookOpen },
+      { path: '/admin/academic', label: 'Academic', icon: Calendar },
       { path: '/admin/face-verifications', label: 'Face Verification', icon: ScanFace },
       { path: '/admin/student-profiles', label: 'Student Profiles', icon: FileText },
     ] : []),
     ...(user?.role === 'TEACHER' ? [
       { path: '/my-classes', label: 'My Classes', icon: Users },
+      { path: '/teacher/grades', label: 'Grade Management', icon: ClipboardList },
       { path: '/live-sessions', label: 'Live Classes', icon: Video },
     ] : []),
     ...(user?.role === 'STUDENT' ? [
       { path: '/my-classes', label: 'My Classes', icon: GraduationCap },
+      { path: '/student/results', label: 'My Results', icon: Award },
       { path: '/live-sessions', label: 'Live Classes', icon: Video },
       { path: '/student-profile', label: 'My Profile', icon: User },
     ] : []),
